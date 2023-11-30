@@ -1,2 +1,2 @@
-# Bob-the-fire-extinguisher
-A tool to search, pin and extinguish fires in the map
+# Bob-the-environment-enemy
+A tool to place streets and ruin the environment from point A to point B
