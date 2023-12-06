@@ -1,3 +1,8 @@
+use robotics_lib::runner::Robot;
+
+mod bob;
+mod utils;
+
 fn main() {
-    println!("Hello, world!");
+    struct MyRobot(Robot);
 }
