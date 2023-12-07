@@ -1,6 +1,6 @@
 use robotics_lib::energy::Energy;
 use robotics_lib::event::events::Event;
-use robotics_lib::interface::{go, put, Direction};
+use robotics_lib::interface::{go, put, Direction, robot_map};
 use robotics_lib::runner::backpack::BackPack;
 use robotics_lib::runner::{Robot, Runnable};
 use robotics_lib::utils::LibError;
@@ -9,7 +9,6 @@ use robotics_lib::world::tile::Content::Rock;
 use robotics_lib::world::tile::TileType::Street;
 use robotics_lib::world::World;
 
-use crate::utils;
 
 struct MyRobot(Robot);
 
@@ -161,6 +160,7 @@ pub fn go_trace_street(
     }
 
     // todo!("Should check the Content of the tile in front of me and decide what to do. Maybe avoid it if it is not destroyable")
+
 
     for direction in iter_path {
         // get the tile in front of me
