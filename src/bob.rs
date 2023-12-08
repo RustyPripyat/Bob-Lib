@@ -1,10 +1,6 @@
-use std::any::{Any, type_name, TypeId};
-use std::iter::empty;
-use std::ops::Deref;
-use std::rc::Rc;
 use robotics_lib::energy::Energy;
 use robotics_lib::event::events::Event;
-use robotics_lib::interface::{go, put, Direction, robot_map, robot_view};
+use robotics_lib::interface::{go, put, robot_map, robot_view, Direction};
 use robotics_lib::runner::backpack::BackPack;
 use robotics_lib::runner::{Robot, Runnable};
 use robotics_lib::utils::LibError;
@@ -13,7 +9,10 @@ use robotics_lib::world::tile::Content::Rock;
 use robotics_lib::world::tile::Tile;
 use robotics_lib::world::tile::TileType::Street;
 use robotics_lib::world::World;
-
+use std::any::{type_name, Any, TypeId};
+use std::iter::empty;
+use std::ops::Deref;
+use std::rc::Rc;
 
 struct MyRobot(Robot);
 
@@ -77,14 +76,14 @@ impl Runnable for MyRobot {
 
 // ---------------------------------------------------------------------
 
-trait BobPinTrait<T>{
+trait BobPinTrait<T> {
     fn calculate(&self) -> T;
 }
-trait BobPinTraitEmpty{
+trait BobPinTraitEmpty {
     fn calculate(&self) -> Option<Box<dyn Any>>;
 }
 struct BobPin<T> {
-    pin: T
+    pin: T,
 }
 
 impl<T: Clone> BobPinTrait<T> for BobPin<T> {
@@ -94,34 +93,32 @@ impl<T: Clone> BobPinTrait<T> for BobPin<T> {
 }
 
 struct BobPinEmpty<T: BobPinTrait<T>> {
-    pin: T
+    pin: T,
 }
 
-impl<T: BobPinTrait<T>> BobPinEmpty<T>{
-    fn new(pin: T) -> Self{
-        Self {
-            pin
-        }
+impl<T: BobPinTrait<T>> BobPinEmpty<T> {
+    fn new(pin: T) -> Self {
+        Self { pin }
     }
 }
 
-impl<T: BobPinTrait<T>> BobPinTraitEmpty for BobPinEmpty<T>{
+impl<T: BobPinTrait<T>> BobPinTraitEmpty for BobPinEmpty<T> {
     fn calculate(&self) -> Option<Box<dyn Any>> {
         Some(Box::new(self.pin.calculate()))
     }
 }
 
 struct BobMap {
-    map: Vec<Vec<(Option<Tile>, Option<Rc<dyn BobPinTraitEmpty>>)>>
+    map: Vec<Vec<(Option<Tile>, Option<Rc<dyn BobPinTraitEmpty>>)>>,
 }
 
-const BOB_MAP_CONST:BobMap = BobMap::init();
+const BOB_MAP_CONST: BobMap = BobMap::init();
 
 impl BobMap {
-    pub(crate) fn init() -> BobMap{
+    pub(crate) fn init() -> BobMap {
         todo!()
     }
-    pub(crate) fn update(&mut self, view: &Vec<Vec<Option<Tile>>>){
+    pub(crate) fn update(&mut self, view: &Vec<Vec<Option<Tile>>>) {
         todo!();
     }
 
@@ -130,19 +127,19 @@ impl BobMap {
         todo!()
     }
 
-    fn calculate <T: BobPinTrait<T>>(&self, coordinates: (usize, usize)) -> Option<T> {
+    fn calculate<T: BobPinTrait<T>>(&self, coordinates: (usize, usize)) -> Option<T> {
         let pin = self.map[coordinates.0][coordinates.1].1.unwrap();
-        let res:Box<T> = pin.calculate().unwrap().downcast().ok()?;
+        let res: Box<T> = pin.calculate().unwrap().downcast().ok()?;
         Some(*res)
     }
 }
 
 // ---------------------------------------------
 
-pub fn bob_view(robot: &impl Runnable, world: &World) -> Vec<Vec<Option<Tile>>>{
+pub fn bob_view(robot: &impl Runnable, world: &World) -> Vec<Vec<Option<Tile>>> {
     let view = robot_view(robot, world);
     BOB_MAP_CONST.update(&view);
-    let s = BOB_MAP_CONST.calculate((1,2)).unwrap();
+    let s = BOB_MAP_CONST.calculate((1, 2)).unwrap();
     view
 }
 
@@ -150,14 +147,14 @@ pub fn bob_map() -> Vec<Vec<(Option<Tile>, Option<Rc<dyn Any>>)>> {
     BOB_MAP_CONST.map.clone()
 }
 
-pub fn bob_long_view(){
+pub fn bob_long_view() {
     todo!()
 }
 
-pub fn bob_pin(){
+pub fn bob_pin() {
     todo!()
 }
 
-pub fn bob_remove_pin(){
+pub fn bob_remove_pin() {
     todo!()
 }

@@ -2,6 +2,4 @@
 mod bob;
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

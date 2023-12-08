@@ -3,13 +3,12 @@
 // sell x things
 // reach x location
 
-
 // ---------------------------------------------------------------------
 
 use std::fmt;
 use std::fmt::Display;
 
-use robotics_lib::interface::{destroy, Direction, put};
+use robotics_lib::interface::{destroy, put, Direction};
 use robotics_lib::runner::Runnable;
 use robotics_lib::utils::LibError;
 use robotics_lib::world::tile::Content;
@@ -23,7 +22,7 @@ pub enum GoalType {
     PutOutFire,
     GetItems,
     SellItems,
-    ReachLocation,
+    // ReachLocation,
     ThrowGarbage,
 }
 
@@ -37,19 +36,20 @@ struct Goal {
     items_left: usize,
 }
 
-
 impl Goal {
-    pub fn new(name: String,
-               description: String,
-               goal_type: GoalType,
-               goal_quantity: usize) -> Goal {
+    pub fn new(
+        name: String,
+        description: String,
+        goal_type: GoalType,
+        goal_quantity: usize,
+    ) -> Goal {
         Goal {
             name,
             description,
             goal_type,
             completed: false,
             goal_quantity,
-            items_left: goal_quantity
+            items_left: goal_quantity,
         }
     }
 
@@ -80,7 +80,11 @@ impl Goal {
 
 impl Display for Goal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let completed_status = if self.completed { "Completed" } else { "Not Completed" };
+        let completed_status = if self.completed {
+            "Completed"
+        } else {
+            "Not Completed"
+        };
 
         write!(
             f,
@@ -146,15 +150,19 @@ impl Display for GoalTracker {
     }
 }
 
-pub fn put_out_fire(robot: &mut impl Runnable,
-                    world: &mut World,
-                    content_in: Content,
-                    quantity: usize,
-                    direction: Direction,
-                    mut goal_tracker: GoalTracker) -> Result<(), LibError> {
-
+pub fn put_out_fire(
+    robot: &mut impl Runnable,
+    world: &mut World,
+    content_in: Content,
+    quantity: usize,
+    direction: Direction,
+    mut goal_tracker: GoalTracker,
+) -> Result<(), LibError> {
     // check if robot is in front of fire
-    match get_tile_in_direction(robot, world, &direction).unwrap().get_content() {
+    match get_tile_in_direction(robot, world, &direction)
+        .unwrap()
+        .get_content()
+    {
         Some(Content::Fire) => {}
         _ => {
             eprintln!("Error: {:?}", LibError::new("Error: not fire"));
@@ -177,15 +185,19 @@ pub fn put_out_fire(robot: &mut impl Runnable,
     Ok(())
 }
 
-pub fn sell_items(robot: &mut impl Runnable,
-                  world: &mut World,
-                  content_in: Content,
-                  quantity: usize,
-                  direction: Direction,
-                  mut goal_tracker: GoalTracker) -> Result<(), LibError> {
-
+pub fn sell_items(
+    robot: &mut impl Runnable,
+    world: &mut World,
+    content_in: Content,
+    quantity: usize,
+    direction: Direction,
+    mut goal_tracker: GoalTracker,
+) -> Result<(), LibError> {
     // check if the robos is in front of market
-    match get_tile_in_direction(robot, world, &direction).unwrap().get_content() {
+    match get_tile_in_direction(robot, world, &direction)
+        .unwrap()
+        .get_content()
+    {
         Some(Content::Market) => {}
         _ => {
             eprintln!("Error: {:?}", LibError::new("Error: not market"));
@@ -208,16 +220,20 @@ pub fn sell_items(robot: &mut impl Runnable,
     Ok(())
 }
 
-pub fn throw_garbage(robot: &mut impl Runnable,
-                     world: &mut World,
-                     content_in: Content,
-                     quantity: usize,
-                     direction: Direction,
-                     mut goal_tracker: GoalTracker) -> Result<(), LibError> {
-
+pub fn throw_garbage(
+    robot: &mut impl Runnable,
+    world: &mut World,
+    content_in: Content,
+    quantity: usize,
+    direction: Direction,
+    mut goal_tracker: GoalTracker,
+) -> Result<(), LibError> {
     // check if the robot is in front of bin and content_in is garbage
-    match get_tile_in_direction(robot, world, &direction).unwrap().get_content() {
-        Some(Content::Garbage) => {}
+    match get_tile_in_direction(robot, world, &direction)
+        .unwrap()
+        .get_content()
+    {
+        Some(Content::Bin) => {}
         _ => {
             eprintln!("Error: {:?}", LibError::new("Error: not garbage"));
             return Err(LibError::new("Error: not garbage"));
@@ -239,13 +255,17 @@ pub fn throw_garbage(robot: &mut impl Runnable,
     Ok(())
 }
 
-pub fn get_items(robot: &mut impl Runnable,
-                 world: &mut World,
-                 direction: Direction,
-                 mut goal_tracker: GoalTracker) -> Result<(), LibError> {
-
+pub fn get_items(
+    robot: &mut impl Runnable,
+    world: &mut World,
+    direction: Direction,
+    mut goal_tracker: GoalTracker,
+) -> Result<(), LibError> {
     // check if the robot is in front of item
-    match get_tile_in_direction(robot, world, &direction).unwrap().get_content() {
+    match get_tile_in_direction(robot, world, &direction)
+        .unwrap()
+        .get_content()
+    {
         Some(Content::None) => {
             eprintln!("Error: {:?}", LibError::new("Error: not item"));
             return Err(LibError::new("Error: not item"));
@@ -254,7 +274,7 @@ pub fn get_items(robot: &mut impl Runnable,
     }
 
     // destroy(robot,world, direction
-    match destroy(robot, world,  direction) {
+    match destroy(robot, world, direction) {
         Ok(removed_quantity) => {
             // println!("Successfully put {} items", quantity_put);
             goal_tracker.udpate(Ok(()), GoalType::GetItems);
