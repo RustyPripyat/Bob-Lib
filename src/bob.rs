@@ -1,11 +1,16 @@
+use std::any::{Any, type_name, TypeId};
+use std::iter::empty;
+use std::ops::Deref;
+use std::rc::Rc;
 use robotics_lib::energy::Energy;
 use robotics_lib::event::events::Event;
-use robotics_lib::interface::{go, put, Direction, robot_map};
+use robotics_lib::interface::{go, put, Direction, robot_map, robot_view};
 use robotics_lib::runner::backpack::BackPack;
 use robotics_lib::runner::{Robot, Runnable};
 use robotics_lib::utils::LibError;
 use robotics_lib::world::coordinates::Coordinate;
 use robotics_lib::world::tile::Content::Rock;
+use robotics_lib::world::tile::Tile;
 use robotics_lib::world::tile::TileType::Street;
 use robotics_lib::world::World;
 
@@ -70,133 +75,89 @@ impl Runnable for MyRobot {
     }
 }
 
-/// Calculates the sequence of directions to navigate from point A to point B in a rectangular manner.
-///
-/// # Arguments
-///
-/// * `a` - A tuple representing the starting point as `(row, col)`
-/// * `b` - A tuple representing the ending point as `(row, col)`
-///
-/// # Returns
-///
-/// A vector containing the sequence of `Direction` enums to move from point A to point B.
-///
-/// # Examples
-///
-/// ```
-/// use robotics_lib::interface::Direction;
-/// use bob::navigate_rectangular;
-///
-/// let start = (1, 1);
-/// let end = (4, 3);
-/// let path = navigate_rectangular(start, end);
-/// assert_eq!(path, vec![Direction::Right, Direction::Right, Direction::Right, Direction::Down, Direction::Down]);
-/// ```
-pub fn navigate_rectangular(a: (usize, usize), b: (usize, usize)) -> Vec<Direction> {
-    let mut directions = Vec::new();
-    // rows
-    match a.0.cmp(&b.0) {
-        std::cmp::Ordering::Less => directions.extend(vec![Direction::Up; b.0 - a.0]),
-        std::cmp::Ordering::Greater => directions.extend(vec![Direction::Down; a.0 - b.0]),
-        _ => (), // No horizontal movement needed
-    }
+// ---------------------------------------------------------------------
 
-    // columns
-    match a.1.cmp(&b.1) {
-        std::cmp::Ordering::Less => directions.extend(vec![Direction::Right; b.1 - a.1]),
-        std::cmp::Ordering::Greater => directions.extend(vec![Direction::Left; a.1 - b.1]),
-        _ => (), // No vertical movement needed
-    }
-
-    directions
+trait BobPinTrait<T>{
+    fn calculate(&self) -> T;
+}
+trait BobPinTraitEmpty{
+    fn calculate(&self) -> Option<Box<dyn Any>>;
+}
+struct BobPin<T> {
+    pin: T
 }
 
-/// Moves the robot and lays down streets or performs actions based on the given target and moves already executed.
-///
-/// # Arguments
-///
-/// * `robot` - A mutable reference to the robot that implements the `Runnable` trait.
-/// * `world` - A mutable reference to the world.
-/// * `target` - A tuple representing the target coordinates (row, col) to reach.
-/// * `moves_already_done` - The number of moves already executed, used to resume the movement from a specific point.
-///
-/// # Returns
-///
-/// * `Result<(), LibError>` - Returns `Ok(())` if the movement and actions are successful, otherwise returns a `LibError`.
-///
-/// # Errors
-///
-/// The function can return errors of type `LibError` based on the actions performed during movement. Errors can include:
-///
-/// * `WrongContentUsed` - Occurs when incorrect content is used during the movement or action.
-/// * `NotEnoughEnergy` - Occurs when the robot does not have enough energy to perform the action.
-/// * `OperationNotAllowed` - Occurs when an operation is attempted but not allowed in the current context.
-pub fn go_trace_street(
-    robot: &mut impl Runnable,
-    world: &mut World,
-    target: (usize, usize),
-    moves_already_done: u32,
-) -> Result<(), LibError> {
-    let start = (
-        robot.get_coordinate().get_row(),
-        robot.get_coordinate().get_col(),
-    );
-    let path = navigate_rectangular(start, target);
-    let path_len = path.len();
-
-    // now path is consumed
-    let iter_path = path.into_iter().skip(moves_already_done as usize);
-
-    let rocks_number = robot
-        .get_backpack()
-        .get_contents()
-        .get(&Rock(1))
-        .unwrap_or(&0);
-
-    let rock_needed = path_len - moves_already_done as usize;
-
-    if *rocks_number < rock_needed {
-        return Err(LibError::NotEnoughContentInBackPack);
+impl<T: Clone> BobPinTrait<T> for BobPin<T> {
+    fn calculate(&self) -> T {
+        self.pin.clone()
     }
+}
 
-    // todo!("Should check the Content of the tile in front of me and decide what to do. Maybe avoid it if it is not destroyable")
+struct BobPinEmpty<T: BobPinTrait<T>> {
+    pin: T
+}
 
-
-    for direction in iter_path {
-        // get the tile in front of me
-        match utils::get_tile_in_direction(robot, world, &direction) {
-            Some(tile) => {
-                // if the tile is a street, move
-                match tile.tile_type {
-                    Street => match go(robot, world, direction) {
-                        Ok(_) => (), // Move successful, continue iterating
-                        Err(err) => {
-                            println!("Error encountered moving: {:?}", err);
-                            return Err(err); // Or handle the error appropriately
-                        }
-                    },
-                    _ => match put(robot, world, Rock(1), 1, direction) {
-                        Ok(_) => (), // Move successful, continue iterating
-                        Err(err) => {
-                            println!("Error encountered laying rocks: {:?}", err);
-                            return Err(err); // Or handle the error appropriately
-                        }
-                    },
-                }
-            }
-            None => {
-                // if the tile is not a street, put a street
-                match put(robot, world, Rock(1), 1, direction) {
-                    Ok(_) => (), // Move successful, continue iterating
-                    Err(err) => {
-                        // Handle the error returned by put function
-                        println!("Error encountered laying rocks: {:?}", err);
-                        // You can choose to break the loop, return an error, or take other actions
-                        return Err(err);
-                    }
-                }
-            }
+impl<T: BobPinTrait<T>> BobPinEmpty<T>{
+    fn new(pin: T) -> Self{
+        Self {
+            pin
         }
     }
-    Ok(())
+}
+
+impl<T: BobPinTrait<T>> BobPinTraitEmpty for BobPinEmpty<T>{
+    fn calculate(&self) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.pin.calculate()))
+    }
+}
+
+struct BobMap {
+    map: Vec<Vec<(Option<Tile>, Option<Rc<dyn BobPinTraitEmpty>>)>>
+}
+
+const BOB_MAP_CONST:BobMap = BobMap::init();
+
+impl BobMap {
+    pub(crate) fn init() -> BobMap{
+        todo!()
+    }
+    pub(crate) fn update(&mut self, view: &Vec<Vec<Option<Tile>>>){
+        todo!();
+    }
+
+    fn add_pin<T: BobPinTrait<T>>(&mut self, pin: T) {
+        self.map[0][0].1 = Some(Rc::new(BobPinEmpty::new(pin)));
+        todo!()
+    }
+
+    fn calculate <T: BobPinTrait<T>>(&self, coordinates: (usize, usize)) -> Option<T> {
+        let pin = self.map[coordinates.0][coordinates.1].1.unwrap();
+        let res:Box<T> = pin.calculate().unwrap().downcast().ok()?;
+        Some(*res)
+    }
+}
+
+// ---------------------------------------------
+
+pub fn bob_view(robot: &impl Runnable, world: &World) -> Vec<Vec<Option<Tile>>>{
+    let view = robot_view(robot, world);
+    BOB_MAP_CONST.update(&view);
+    let s = BOB_MAP_CONST.calculate((1,2)).unwrap();
+    view
+}
+
+pub fn bob_map() -> Vec<Vec<(Option<Tile>, Option<Rc<dyn Any>>)>> {
+    BOB_MAP_CONST.map.clone()
+}
+
+pub fn bob_long_view(){
+    todo!()
+}
+
+pub fn bob_pin(){
+    todo!()
+}
+
+pub fn bob_remove_pin(){
+    todo!()
 }
