@@ -1,2 +1,2 @@
-# Bob-the-environment-enemy
-A tool to place streets and ruin the environment from point A to point B
+# Bob-the-poor-sheikah-clone
+A qol tool to pin generics in the map and keep track of a mission
