@@ -1,7 +1,10 @@
 use std::any::{Any, type_name, TypeId};
+use std::io::Seek;
 use std::iter::empty;
 use std::ops::Deref;
+use std::pin::Pin;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use robotics_lib::energy::Energy;
 use robotics_lib::event::events::Event;
 use robotics_lib::interface::{go, put, Direction, robot_map, robot_view};
@@ -10,7 +13,7 @@ use robotics_lib::runner::{Robot, Runnable};
 use robotics_lib::utils::LibError;
 use robotics_lib::world::coordinates::Coordinate;
 use robotics_lib::world::tile::Content::Rock;
-use robotics_lib::world::tile::Tile;
+use robotics_lib::world::tile::{Content, Tile, TileType};
 use robotics_lib::world::tile::TileType::Street;
 use robotics_lib::world::World;
 
@@ -77,87 +80,75 @@ impl Runnable for MyRobot {
 
 // ---------------------------------------------------------------------
 
-trait BobPinTrait<T>{
-    fn calculate(&self) -> T;
-}
-trait BobPinTraitEmpty{
-    fn calculate(&self) -> Option<Box<dyn Any>>;
-}
-struct BobPin<T> {
-    pin: T
-}
-
-impl<T: Clone> BobPinTrait<T> for BobPin<T> {
-    fn calculate(&self) -> T {
-        self.pin.clone()
-    }
+#[derive(Debug, Clone)]
+pub enum BobPinTypes{
+    I32(i32),
+    String(String),
+    F64(f64),
+    TileType(TileType),
+    Contents(Content),
+    City,
+    Bank(usize),
+    Market,
+    Custom1(Rc<dyn Any>),
 }
 
-struct BobPinEmpty<T: BobPinTrait<T>> {
-    pin: T
+pub struct BobMap {
+    map: Vec<Vec<(Option<Tile>, Option<Rc<BobPinTypes>>)>>
 }
-
-impl<T: BobPinTrait<T>> BobPinEmpty<T>{
-    fn new(pin: T) -> Self{
-        Self {
-            pin
-        }
-    }
-}
-
-impl<T: BobPinTrait<T>> BobPinTraitEmpty for BobPinEmpty<T>{
-    fn calculate(&self) -> Option<Box<dyn Any>> {
-        Some(Box::new(self.pin.calculate()))
-    }
-}
-
-struct BobMap {
-    map: Vec<Vec<(Option<Tile>, Option<Rc<dyn BobPinTraitEmpty>>)>>
-}
-
-const BOB_MAP_CONST:BobMap = BobMap::init();
 
 impl BobMap {
-    pub(crate) fn init() -> BobMap{
-        todo!()
+    pub fn init() -> BobMap {
+        BobMap {
+            map: vec![vec![(None, None)]]
+        }
     }
-    pub(crate) fn update(&mut self, view: &Vec<Vec<Option<Tile>>>){
+
+    fn update(&mut self, view: &Vec<Vec<Option<Tile>>>) {
         todo!();
     }
 
-    fn add_pin<T: BobPinTrait<T>>(&mut self, pin: T) {
-        self.map[0][0].1 = Some(Rc::new(BobPinEmpty::new(pin)));
-        todo!()
+    fn add_pin(&mut self, pin: Rc<BobPinTypes>) {
+        self.map[0][0].1 = Some(pin.clone());
     }
 
-    fn calculate <T: BobPinTrait<T>>(&self, coordinates: (usize, usize)) -> Option<T> {
-        let pin = self.map[coordinates.0][coordinates.1].1.unwrap();
-        let res:Box<T> = pin.calculate().unwrap().downcast().ok()?;
-        Some(*res)
+    fn get_pin(&self) -> Rc<BobPinTypes> {
+        self.map[0][0].1.as_ref().unwrap().clone()
     }
 }
 
 // ---------------------------------------------
 
-pub fn bob_view(robot: &impl Runnable, world: &World) -> Vec<Vec<Option<Tile>>>{
+pub fn bob_view<T: Clone>(robot: &impl Runnable, world: &World) -> Vec<Vec<Option<Tile>>> {
     let view = robot_view(robot, world);
-    BOB_MAP_CONST.update(&view);
-    let s = BOB_MAP_CONST.calculate((1,2)).unwrap();
+    let mut map = BobMap::init();
+
     view
 }
 
 pub fn bob_map() -> Vec<Vec<(Option<Tile>, Option<Rc<dyn Any>>)>> {
-    BOB_MAP_CONST.map.clone()
-}
-
-pub fn bob_long_view(){
     todo!()
 }
 
-pub fn bob_pin(){
+pub fn bob_long_view() {
     todo!()
 }
 
-pub fn bob_remove_pin(){
+pub fn bob_pin(map: &mut BobMap, pin: BobPinTypes) {
+    map.add_pin(Rc::new(pin));
+}
+
+pub fn bob_get_pin(map: &mut BobMap) -> BobPinTypes {
+    map.get_pin().deref().clone()
+}
+
+pub fn bob_remove_pin() {
     todo!()
+}
+
+pub fn bob_type_check<T: 'static>(to_check: Rc<dyn Any>) -> Result<Rc<T>, ()> {
+    if let Some(val) = to_check.downcast::<T>().ok(){
+        return Ok(val);
+    }
+    Err(())
 }
