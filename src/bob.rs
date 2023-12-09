@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use robotics_lib::energy::Energy;
 use robotics_lib::event::events::Event;
-use robotics_lib::interface::{go, put, Direction, robot_map, robot_view};
+use robotics_lib::interface::{go, put, Direction, robot_map, robot_view, one_direction_view};
 use robotics_lib::runner::backpack::BackPack;
 use robotics_lib::runner::{Robot, Runnable};
 use robotics_lib::utils::LibError;

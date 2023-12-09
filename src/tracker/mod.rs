@@ -18,6 +18,7 @@ use utils::get_tile_in_direction;
 
 /// Enum representing various types of goals in a robotics context.
 #[derive(Debug)]
+#[derive(PartialEq)]
 pub enum GoalType {
     PutOutFire,
     GetItems,
@@ -161,7 +162,6 @@ impl GoalTracker {
             }
             Err(e) => {
                 eprintln!("Error: {:?}", e);
-                Err(LibError::new("Error: Goal not completed"))
             }
         }
     }
@@ -204,12 +204,12 @@ pub fn put_out_fire(
     // check if robot is in front of fire
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()
-        .get_content()
+        .content
     {
         Some(Content::Fire) => {}
         _ => {
             eprintln!("Error: {:?}", LibError::new("Error: not fire"));
-            return Err(LibError::new("Error: not fire"));
+            return Err(LibError::OperationNotAllowed);
         }
     }
 
@@ -257,7 +257,7 @@ pub fn sell_items(
         .unwrap()
         .get_content()
     {
-        Some(Content::Market) => {}
+        Some(Content::Market(_)) => {}
         _ => {
             eprintln!("Error: {:?}", LibError::new("Error: not market"));
             return Err(LibError::new("Error: not market"));
@@ -308,7 +308,7 @@ pub fn throw_garbage(
         .unwrap()
         .get_content()
     {
-        Some(Content::Bin) => {}
+        Some(Content::Bin(_)) => {}
         _ => {
             eprintln!("Error: {:?}", LibError::new("Error: not garbage"));
             return Err(LibError::new("Error: not garbage"));
