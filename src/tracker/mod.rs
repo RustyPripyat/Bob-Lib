@@ -1,10 +1,3 @@
-// put out fires
-// get x items
-// sell x things
-// reach x location
-
-// ---------------------------------------------------------------------
-
 use std::fmt;
 use std::fmt::Display;
 
@@ -17,13 +10,11 @@ use robotics_lib::world::World;
 use utils::get_tile_in_direction;
 
 /// Enum representing various types of goals in a robotics context.
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum GoalType {
     PutOutFire,
     GetItems,
     SellItems,
-    // ReachLocation,
     ThrowGarbage,
 }
 
@@ -95,7 +86,7 @@ impl Display for Goal {
     }
 }
 
-struct GoalTracker {
+pub struct GoalTracker {
     goals: Vec<Goal>,
     completed_number: usize,
 }
@@ -206,10 +197,11 @@ pub fn put_out_fire(
         .unwrap()
         .content
     {
-        Some(Content::Fire) => {}
+        Content::Fire => {}
         _ => {
-            eprintln!("Error: {:?}", LibError::new("Error: not fire"));
-            return Err(LibError::OperationNotAllowed);
+            let err = LibError::OperationNotAllowed;
+            eprintln!("Error: {:?}", err);
+            return Err(err);
         }
     }
 
@@ -221,9 +213,9 @@ pub fn put_out_fire(
             // Continue with your program logic using the returned quantity
         }
         Err(err) => {
+            // let err = LibError::OperationNotAllowed;
             eprintln!("Error: {:?}", err);
-            Err(LibError::new("Error: fire not put out"))
-            // Handle the error case
+            return Err(err);
         }
     }
     // Ok(())
@@ -253,14 +245,19 @@ pub fn sell_items(
     mut goal_tracker: GoalTracker,
 ) -> Result<(usize), LibError> {
     // check if the robot is in front of market
-    match get_tile_in_direction(robot, world, &direction)
-        .unwrap()
-        .get_content()
-    {
-        Some(Content::Market(_)) => {}
-        _ => {
-            eprintln!("Error: {:?}", LibError::new("Error: not market"));
-            return Err(LibError::new("Error: not market"));
+    match get_tile_in_direction(robot, world, &direction) {
+        Some(tile) => match tile.content {
+            Content::Market(_) => {}
+            _ => {
+                let err = LibError::OperationNotAllowed;
+                eprintln!("Error: {:?}", err);
+                return Err(err);
+            }
+        },
+        None => {
+            let err = LibError::OutOfBounds;
+            eprintln!("Error: {:?}", err);
+            return Err(err);
         }
     }
 
@@ -272,9 +269,9 @@ pub fn sell_items(
             // Continue with your program logic using the returned quantity
         }
         Err(err) => {
+            let err = LibError::OperationNotAllowed;
             eprintln!("Error: {:?}", err);
-            Err(LibError::new("Error: items not sold"))
-            // Handle the error case
+            return Err(err);
         }
     }
     // Ok(())
@@ -304,14 +301,19 @@ pub fn throw_garbage(
     mut goal_tracker: GoalTracker,
 ) -> Result<(usize), LibError> {
     // check if the robot is in front of bin and content_in is garbage
-    match get_tile_in_direction(robot, world, &direction)
-        .unwrap()
-        .get_content()
-    {
-        Some(Content::Bin(_)) => {}
-        _ => {
-            eprintln!("Error: {:?}", LibError::new("Error: not garbage"));
-            return Err(LibError::new("Error: not garbage"));
+    match get_tile_in_direction(robot, world, &direction) {
+        Some(tile) => match tile.content {
+            Content::Bin(_) => {}
+            _ => {
+                let err = LibError::OperationNotAllowed;
+                eprintln!("Error: {:?}", err);
+                return Err(err);
+            }
+        },
+        None => {
+            let err = LibError::OutOfBounds;
+            eprintln!("Error: {:?}", err);
+            return Err(err);
         }
     }
 
@@ -324,11 +326,11 @@ pub fn throw_garbage(
         }
         Err(err) => {
             eprintln!("Error: {:?}", err);
-            Err(LibError::new("Error: garbage not thrown"))
+            return Err(err);
             // Handle the error case
         }
     }
-    // Ok(())
+    // Ok((0))
 }
 
 /// Gets items in a specified direction by using the robot to perform the action.
@@ -351,15 +353,20 @@ pub fn get_items(
     mut goal_tracker: GoalTracker,
 ) -> Result<(usize), LibError> {
     // check if the robot is in front of item
-    match get_tile_in_direction(robot, world, &direction)
-        .unwrap()
-        .get_content()
-    {
-        Some(Content::None) => {
-            eprintln!("Error: {:?}", LibError::new("Error: not item"));
-            return Err(LibError::new("Error: not item"));
+    match get_tile_in_direction(robot, world, &direction) {
+        Some(tile) => match tile.content {
+            Content::None => {
+                let err = LibError::NoContent;
+                eprintln!("Error: {:?}", err);
+                return Err(err);
+            }
+            _ => {}
+        },
+        None => {
+            let err = LibError::OutOfBounds;
+            eprintln!("Error: {:?}", err);
+            return Err(err);
         }
-        _ => {}
     }
 
     // destroy(robot,world, direction
@@ -372,7 +379,7 @@ pub fn get_items(
         }
         Err(err) => {
             eprintln!("Error: {:?}", err);
-            Err(LibError::new("Error: items not gotten"))
+            Err(err)
             // Handle the error case
         }
     }

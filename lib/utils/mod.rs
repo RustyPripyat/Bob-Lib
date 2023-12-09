@@ -52,11 +52,11 @@ pub fn get_tile_in_direction(
 // return (energy, material)
 pub fn get_edge_cost(tile: TileType) -> Option<(isize, isize)> {
     match tile {
-        (TileType::Grass | TileType::Sand | TileType::Hill | TileType::Snow) => Some((1, 1)),
-        (TileType::ShallowWater) => Some((2, 2)),
-        (TileType::DeepWater) => Some((6, 3)),
-        (TileType::Lava) => Some((9, 3)),
-        (TileType::Mountain) => Some((16, -4)),
+        TileType::Grass | TileType::Sand | TileType::Hill | TileType::Snow => Some((1, 1)),
+        TileType::ShallowWater => Some((2, 2)),
+        TileType::DeepWater => Some((6, 3)),
+        TileType::Lava => Some((9, 3)),
+        TileType::Mountain => Some((16, -4)),
         _ => None,
     }
 }

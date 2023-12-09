@@ -1,21 +1,20 @@
-use std::any::{Any, type_name, TypeId};
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::iter::empty;
-use std::ops::Deref;
-use std::rc::Rc;
 use robotics_lib::energy::Energy;
 use robotics_lib::event::events::Event;
-use robotics_lib::interface::{go, put, Direction, robot_map, robot_view, one_direction_view};
+use robotics_lib::interface::{go, one_direction_view, put, robot_map, robot_view, Direction};
 use robotics_lib::runner::backpack::BackPack;
 use robotics_lib::runner::{Robot, Runnable};
 use robotics_lib::utils::LibError;
 use robotics_lib::world::coordinates::Coordinate;
 use robotics_lib::world::tile::Content::Rock;
-use robotics_lib::world::tile::{Content, Tile, TileType};
 use robotics_lib::world::tile::TileType::Street;
+use robotics_lib::world::tile::{Content, Tile, TileType};
 use robotics_lib::world::World;
-
+use std::any::{type_name, Any, TypeId};
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::iter::empty;
+use std::ops::Deref;
+use std::rc::Rc;
 
 struct MyRobot(Robot);
 
@@ -92,12 +91,8 @@ pub enum BobPinTypes {
 impl PartialEq<Self> for BobPinTypes {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (BobPinTypes::Market, BobPinTypes::Market) => {
-                true
-            }
-            (BobPinTypes::City, BobPinTypes::City) => {
-                true
-            }
+            (BobPinTypes::Market, BobPinTypes::Market) => true,
+            (BobPinTypes::City, BobPinTypes::City) => true,
             (BobPinTypes::I32(val1), BobPinTypes::I32(val2)) => {
                 if val1.eq(val2) {
                     return true;
@@ -129,12 +124,14 @@ impl PartialEq<Self> for BobPinTypes {
                 false
             }
             (BobPinTypes::Custom(val1), BobPinTypes::Custom(val2)) => {
-                if Rc::<(dyn Any + 'static)>::as_ptr(val1).eq(&Rc::<(dyn Any + 'static)>::as_ptr(val2)) {
+                if Rc::<(dyn Any + 'static)>::as_ptr(val1)
+                    .eq(&Rc::<(dyn Any + 'static)>::as_ptr(val2))
+                {
                     return true;
                 }
                 false
             }
-            (_, _) => false
+            (_, _) => false,
         }
     }
 }
@@ -169,48 +166,59 @@ impl BobMap {
     pub fn init(/*world: &World*/) -> BobMap {
         // let robot_map = robot_map(world).unwrap();
         let robot_map = vec![
-            vec![Some(Tile {
-                tile_type: TileType::Grass,
-                content: Content::Fire,
-                elevation: 0,
-            }), Some(Tile {
-                tile_type: TileType::Grass,
-                content: Content::None,
-                elevation: 0,
-            })],
-            vec![Some(Tile {
-                tile_type: TileType::Hill,
-                content: Content::Coin(2),
-                elevation: 0,
-            }), Some(Tile {
-                tile_type: TileType::Hill,
-                content: Content::Coin(5),
-                elevation: 0,
-            })],
-            vec![Some(Tile {
-                tile_type: TileType::Street,
-                content: Content::Bin(0..3),
-                elevation: 0,
-            }), Some(Tile {
-                tile_type: TileType::Lava,
-                content: Content::None,
-                elevation: 0,
-            })],
-            vec![Some(Tile {
-                tile_type: TileType::Teleport(false),
-                content: Content::None,
-                elevation: 0,
-            }), Some(Tile {
-                tile_type: TileType::Grass,
-                content: Content::Garbage(2),
-                elevation: 0,
-            })],
+            vec![
+                Some(Tile {
+                    tile_type: TileType::Grass,
+                    content: Content::Fire,
+                    elevation: 0,
+                }),
+                Some(Tile {
+                    tile_type: TileType::Grass,
+                    content: Content::None,
+                    elevation: 0,
+                }),
+            ],
+            vec![
+                Some(Tile {
+                    tile_type: TileType::Hill,
+                    content: Content::Coin(2),
+                    elevation: 0,
+                }),
+                Some(Tile {
+                    tile_type: TileType::Hill,
+                    content: Content::Coin(5),
+                    elevation: 0,
+                }),
+            ],
+            vec![
+                Some(Tile {
+                    tile_type: TileType::Street,
+                    content: Content::Bin(0..3),
+                    elevation: 0,
+                }),
+                Some(Tile {
+                    tile_type: TileType::Lava,
+                    content: Content::None,
+                    elevation: 0,
+                }),
+            ],
+            vec![
+                Some(Tile {
+                    tile_type: TileType::Teleport(false),
+                    content: Content::None,
+                    elevation: 0,
+                }),
+                Some(Tile {
+                    tile_type: TileType::Grass,
+                    content: Content::Garbage(2),
+                    elevation: 0,
+                }),
+            ],
         ];
-        let map: Vec<Vec<(Option<Tile>, Option<Rc<BobPinTypes>>)>> = robot_map.into_iter().map(
-            |row| row.into_iter().map(
-                |tile| (tile, None)
-            ).collect()
-        ).collect();
+        let map: Vec<Vec<(Option<Tile>, Option<Rc<BobPinTypes>>)>> = robot_map
+            .into_iter()
+            .map(|row| row.into_iter().map(|tile| (tile, None)).collect())
+            .collect();
         BobMap {
             map,
             saved_pins: HashMap::new(),
@@ -259,7 +267,11 @@ impl BobMap {
     }
 }
 
-pub fn bob_view<T: Clone>(robot: &impl Runnable, world: &World, map: &mut BobMap) -> Vec<Vec<Option<Tile>>> {
+pub fn bob_view<T: Clone>(
+    robot: &impl Runnable,
+    world: &World,
+    map: &mut BobMap,
+) -> Vec<Vec<Option<Tile>>> {
     let view = robot_view(robot, world);
     let pos = robot.get_coordinate();
     let mut update_vector: Vec<(usize, usize, Tile)> = vec![];
@@ -278,7 +290,13 @@ pub fn bob_view<T: Clone>(robot: &impl Runnable, world: &World, map: &mut BobMap
     view
 }
 
-pub fn bob_long_view(robot: &mut impl Runnable, world: &World, direction: Direction, distance: usize, map: &mut BobMap) -> Result<Vec<Vec<Tile>>, LibError> {
+pub fn bob_long_view(
+    robot: &mut impl Runnable,
+    world: &World,
+    direction: Direction,
+    distance: usize,
+    map: &mut BobMap,
+) -> Result<Vec<Vec<Tile>>, LibError> {
     let long_view = one_direction_view(robot, world, direction.clone(), distance)?;
     let mut update_vector: Vec<(usize, usize, Tile)> = vec![];
     let pos = robot.get_coordinate();
