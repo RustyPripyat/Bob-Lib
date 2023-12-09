@@ -106,8 +106,31 @@ impl GoalTracker {
             completed_number: 0,
         }
     }
-    pub fn add_goal(&mut self, goal: Goal) {
+    fn add_goal(&mut self, goal: Goal) {
         self.goals.push(goal);
+    }
+
+    /// Remove a goal from the tracker based on its name.
+    ///
+    /// # Arguments
+    /// * `goal_name` - The name of the goal to be removed.
+    ///
+    /// # Returns
+    /// Option<Goal> - The removed goal if found, None otherwise.
+    pub fn remove_goal(&mut self, goal_name: &str) -> Option<Goal> {
+        if let Some(index) = self.goals.iter().position(|goal| goal.name == goal_name) {
+            let removed_goal = self.goals.remove(index);
+            if removed_goal.completed {
+                self.completed_number -= 1;
+            }
+            Some(removed_goal)
+        } else {
+            None
+        }
+    }
+
+    pub fn clean_completed_goals(&mut self) {
+        self.goals.retain(|goal| !goal.completed);
     }
 
     pub fn get_goals(&self) -> &Vec<Goal> {
@@ -118,7 +141,12 @@ impl GoalTracker {
         self.completed_number
     }
 
-    pub fn udpate(&mut self, result: Result<(), LibError>, rhs_goal_type: GoalType) {
+    /// Update the goal tracker based on the action result and the corresponding goal type.
+    ///
+    /// # Arguments
+    /// * `result` - Result of the action performed.
+    /// * `rhs_goal_type` - The goal type to be updated.
+    fn update(&mut self, result: Result<(), LibError>, rhs_goal_type: GoalType) {
         match result {
             Ok(_) => {
                 for goal in self.goals.iter_mut() {
@@ -150,6 +178,21 @@ impl Display for GoalTracker {
     }
 }
 
+/// Puts out a fire in a specified direction by using the robot to perform the action.
+/// It automatically checks if the robot is in front of a Fire and if the content is
+/// valid. If not, it returns an error. It does update all your goals if the action is successful.
+///
+/// # Arguments
+/// * `robot` - The robot that will perform the action.
+/// * `world` - The world in which the action takes place.
+/// * `content_in` - The type of content to put out the fire.
+/// * `quantity` - The quantity of the content to use for putting out the fire.
+/// * `direction` - The direction in which to perform the action.
+/// * `goal_tracker` - The goal tracker to update upon successfully putting out the fire.
+///
+/// # Returns
+/// Result<(usize), LibError> - Ok((removed_quantity)) if the action is successful, Err(LibError) otherwise.
+///
 pub fn put_out_fire(
     robot: &mut impl Runnable,
     world: &mut World,
@@ -157,7 +200,7 @@ pub fn put_out_fire(
     quantity: usize,
     direction: Direction,
     mut goal_tracker: GoalTracker,
-) -> Result<(), LibError> {
+) -> Result<(usize), LibError> {
     // check if robot is in front of fire
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()
@@ -173,7 +216,8 @@ pub fn put_out_fire(
     match put(robot, world, content_in, quantity, direction) {
         Ok(removed_quantity) => {
             // println!("Successfully put {} items", quantity_put);
-            goal_tracker.udpate(Ok(()), GoalType::PutOutFire);
+            goal_tracker.update(Ok(()), GoalType::PutOutFire);
+            Ok(removed_quantity)
             // Continue with your program logic using the returned quantity
         }
         Err(err) => {
@@ -182,9 +226,24 @@ pub fn put_out_fire(
             // Handle the error case
         }
     }
-    Ok(())
+    // Ok(())
 }
 
+/// Sells items in a specified direction by using the robot to perform the action.
+/// It automatically checks if the robot is in front of a market and if the content to sell is
+/// valid. If not, it returns an error. It does update all your goals if the action is successful.
+///
+/// # Arguments
+/// * `robot` - The robot that will perform the action.
+/// * `world` - The world in which the action takes place.
+/// * `content_in` - The type of content to sell.
+/// * `quantity` - The quantity of the content to sell.
+/// * `direction` - The direction in which to perform the action.
+/// * `goal_tracker` - The goal tracker to update upon successfully selling items.
+///
+/// # Returns
+/// Result<(usize), LibError> - Ok((removed_quantity)) if the action is successful, Err(LibError) otherwise.
+///
 pub fn sell_items(
     robot: &mut impl Runnable,
     world: &mut World,
@@ -192,8 +251,8 @@ pub fn sell_items(
     quantity: usize,
     direction: Direction,
     mut goal_tracker: GoalTracker,
-) -> Result<(), LibError> {
-    // check if the robos is in front of market
+) -> Result<(usize), LibError> {
+    // check if the robot is in front of market
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()
         .get_content()
@@ -208,7 +267,8 @@ pub fn sell_items(
     match put(robot, world, content_in, quantity, direction) {
         Ok(removed_quantity) => {
             // println!("Successfully put {} items", quantity_put);
-            goal_tracker.udpate(Ok(()), GoalType::SellItems);
+            goal_tracker.update(Ok(()), GoalType::SellItems);
+            Ok(removed_quantity)
             // Continue with your program logic using the returned quantity
         }
         Err(err) => {
@@ -217,9 +277,24 @@ pub fn sell_items(
             // Handle the error case
         }
     }
-    Ok(())
+    // Ok(())
 }
 
+/// Throws garbage in a specified direction by using the robot to perform the action.
+/// It automatically checks if the robot is in front of a Bin and if the content to throw is
+/// valid. If not, it returns an error. It does update all your goals if the action is successful.
+///
+/// # Arguments
+/// * `robot` - The robot that will perform the action.
+/// * `world` - The world in which the action takes place.
+/// * `content_in` - The type of content (garbage) to throw.
+/// * `quantity` - The quantity of the content to throw.
+/// * `direction` - The direction in which to perform the action.
+/// * `goal_tracker` - The goal tracker to update upon successfully throwing garbage.
+///
+/// # Returns
+/// Result<(usize), LibError> - Ok((removed_quantity)) if the action is successful, Err(LibError) otherwise.
+///
 pub fn throw_garbage(
     robot: &mut impl Runnable,
     world: &mut World,
@@ -227,7 +302,7 @@ pub fn throw_garbage(
     quantity: usize,
     direction: Direction,
     mut goal_tracker: GoalTracker,
-) -> Result<(), LibError> {
+) -> Result<(usize), LibError> {
     // check if the robot is in front of bin and content_in is garbage
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()
@@ -243,7 +318,8 @@ pub fn throw_garbage(
     match put(robot, world, content_in, quantity, direction) {
         Ok(removed_quantity) => {
             // println!("Successfully put {} items", quantity_put);
-            goal_tracker.udpate(Ok(()), GoalType::ThrowGarbage);
+            goal_tracker.update(Ok(()), GoalType::ThrowGarbage);
+            Ok(removed_quantity)
             // Continue with your program logic using the returned quantity
         }
         Err(err) => {
@@ -252,15 +328,28 @@ pub fn throw_garbage(
             // Handle the error case
         }
     }
-    Ok(())
+    // Ok(())
 }
 
+/// Gets items in a specified direction by using the robot to perform the action.
+/// It automatically checks if the robot is in front of a Content. If not, it returns an error.
+/// It does update all your goals if the action is successful.
+///
+/// # Arguments
+/// * `robot` - The robot that will perform the action.
+/// * `world` - The world in which the action takes place.
+/// * `direction` - The direction in which to perform the action.
+/// * `goal_tracker` - The goal tracker to update upon successfully getting items.
+///
+/// # Returns
+/// Result<(usize), LibError> - Ok((removed_quantity)) if the action is successful, Err(LibError) otherwise.
+///
 pub fn get_items(
     robot: &mut impl Runnable,
     world: &mut World,
     direction: Direction,
     mut goal_tracker: GoalTracker,
-) -> Result<(), LibError> {
+) -> Result<(usize), LibError> {
     // check if the robot is in front of item
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()
@@ -277,7 +366,8 @@ pub fn get_items(
     match destroy(robot, world, direction) {
         Ok(removed_quantity) => {
             // println!("Successfully put {} items", quantity_put);
-            goal_tracker.udpate(Ok(()), GoalType::GetItems);
+            goal_tracker.update(Ok(()), GoalType::GetItems);
+            Ok(removed_quantity)
             // Continue with your program logic using the returned quantity
         }
         Err(err) => {
@@ -286,5 +376,5 @@ pub fn get_items(
             // Handle the error case
         }
     }
-    Ok(())
+    // Ok(())
 }
