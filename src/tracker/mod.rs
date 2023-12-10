@@ -7,7 +7,7 @@ use robotics_lib::utils::LibError;
 use robotics_lib::world::tile::Content;
 use robotics_lib::world::World;
 
-use utils::get_tile_in_direction;
+use utils::{get_tile_in_direction, match_content_type_variant};
 
 /// Enum representing various types of goals in a robotics context.
 #[derive(Debug, PartialEq)]
@@ -19,13 +19,14 @@ pub enum GoalType {
 }
 
 #[derive(Debug)]
-struct Goal {
+pub struct Goal {
     name: String,
     description: String,
     goal_type: GoalType,
+    item_type: Option<Content>,
     completed: bool,
-    goal_quantity: usize,
-    items_left: usize,
+    goal_quantity: u32,
+    items_left: u32,
 }
 
 impl Goal {
@@ -33,12 +34,14 @@ impl Goal {
         name: String,
         description: String,
         goal_type: GoalType,
-        goal_quantity: usize,
+        item_type: Option<Content>,
+        goal_quantity: u32,
     ) -> Goal {
         Goal {
             name,
             description,
             goal_type,
+            item_type,
             completed: false,
             goal_quantity,
             items_left: goal_quantity,
@@ -61,11 +64,11 @@ impl Goal {
         &self.completed
     }
 
-    pub fn get_goal_quantity(&self) -> &usize {
+    pub fn get_goal_quantity(&self) -> &u32 {
         &self.goal_quantity
     }
 
-    pub fn get_items_left(&self) -> &usize {
+    pub fn get_items_left(&self) -> &u32 {
         &self.items_left
     }
 }
@@ -98,7 +101,7 @@ impl GoalTracker {
             completed_number: 0,
         }
     }
-    fn add_goal(&mut self, goal: Goal) {
+    pub fn add_goal(&mut self, goal: Goal) {
         self.goals.push(goal);
     }
 
@@ -134,26 +137,37 @@ impl GoalTracker {
     }
 
     /// Update the goal tracker based on the action result and the corresponding goal type.
+    /// Only the first goal with the same goal type and item type will be updated.
     ///
     /// # Arguments
     /// * `result` - Result of the action performed.
     /// * `rhs_goal_type` - The goal type to be updated.
-    fn update(&mut self, result: Result<(), LibError>, rhs_goal_type: GoalType) {
-        match result {
-            Ok(_) => {
-                for goal in self.goals.iter_mut() {
-                    if goal.goal_type == rhs_goal_type {
-                        goal.items_left -= 1;
-                        if goal.items_left == 0 {
-                            goal.completed = true;
-                            self.completed_number += 1;
-                        }
-                    }
+    /// * `rhs_item_type` - The item type of the goal.
+    fn update(
+        &mut self,
+        result: Result<(), LibError>,
+        rhs_goal_type: GoalType,
+        rhs_item_type: Option<Content>,
+        removed_quantity: usize,
+    ) {
+        if result.is_ok() {
+            if let Some(goal) = self.goals.iter_mut().find(|goal| {
+                goal.goal_type == rhs_goal_type
+                    && match_content_type_variant(goal.item_type.clone(), rhs_item_type.clone())
+            }) {
+                println!("Found goal: {:?}", goal);
+                goal.items_left -= removed_quantity as u32;
+                goal.items_left = goal.items_left.max(0);
+                // if negative value, set to 0
+                if goal.items_left == 0 {
+                    goal.completed = true;
+                    self.completed_number += 1;
                 }
+            } else {
+                eprintln!("Error: Goal not found");
             }
-            Err(e) => {
-                eprintln!("Error: {:?}", e);
-            }
+        } else if let Err(e) = result {
+            eprintln!("Error: {:?}", e);
         }
     }
 }
@@ -190,8 +204,8 @@ pub fn put_out_fire(
     content_in: Content,
     quantity: usize,
     direction: Direction,
-    mut goal_tracker: GoalTracker,
-) -> Result<(usize), LibError> {
+    goal_tracker: &mut GoalTracker,
+) -> Result<usize, LibError> {
     // check if robot is in front of fire
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()
@@ -205,19 +219,15 @@ pub fn put_out_fire(
         }
     }
 
-    match put(robot, world, content_in, quantity, direction) {
-        Ok(removed_quantity) => {
-            // println!("Successfully put {} items", quantity_put);
-            goal_tracker.update(Ok(()), GoalType::PutOutFire);
-            Ok(removed_quantity)
-            // Continue with your program logic using the returned quantity
-        }
-        Err(err) => {
-            // let err = LibError::OperationNotAllowed;
-            eprintln!("Error: {:?}", err);
-            return Err(err);
-        }
-    }
+    handle_put(
+        robot,
+        world,
+        content_in,
+        quantity,
+        direction,
+        goal_tracker,
+        GoalType::PutOutFire,
+    )
     // Ok(())
 }
 
@@ -236,45 +246,35 @@ pub fn put_out_fire(
 /// # Returns
 /// Result<(usize), LibError> - Ok((removed_quantity)) if the action is successful, Err(LibError) otherwise.
 ///
-pub fn sell_items(
+pub fn sell_items_in_market(
     robot: &mut impl Runnable,
     world: &mut World,
     content_in: Content,
     quantity: usize,
     direction: Direction,
-    mut goal_tracker: GoalTracker,
-) -> Result<(usize), LibError> {
+    goal_tracker: &mut GoalTracker,
+) -> Result<usize, LibError> {
     // check if the robot is in front of market
-    match get_tile_in_direction(robot, world, &direction) {
-        Some(tile) => match tile.content {
+    if let Some(tile) = get_tile_in_direction(robot, world, &direction) {
+        match tile.content {
             Content::Market(_) => {}
             _ => {
                 let err = LibError::OperationNotAllowed;
                 eprintln!("Error: {:?}", err);
                 return Err(err);
             }
-        },
-        None => {
-            let err = LibError::OutOfBounds;
-            eprintln!("Error: {:?}", err);
-            return Err(err);
         }
     }
 
-    match put(robot, world, content_in, quantity, direction) {
-        Ok(removed_quantity) => {
-            // println!("Successfully put {} items", quantity_put);
-            goal_tracker.update(Ok(()), GoalType::SellItems);
-            Ok(removed_quantity)
-            // Continue with your program logic using the returned quantity
-        }
-        Err(err) => {
-            let err = LibError::OperationNotAllowed;
-            eprintln!("Error: {:?}", err);
-            return Err(err);
-        }
-    }
-    // Ok(())
+    handle_put(
+        robot,
+        world,
+        content_in,
+        quantity,
+        direction,
+        goal_tracker,
+        GoalType::SellItems,
+    )
 }
 
 /// Throws garbage in a specified direction by using the robot to perform the action.
@@ -298,8 +298,8 @@ pub fn throw_garbage(
     content_in: Content,
     quantity: usize,
     direction: Direction,
-    mut goal_tracker: GoalTracker,
-) -> Result<(usize), LibError> {
+    goal_tracker: &mut GoalTracker,
+) -> Result<usize, LibError> {
     // check if the robot is in front of bin and content_in is garbage
     match get_tile_in_direction(robot, world, &direction) {
         Some(tile) => match tile.content {
@@ -317,20 +317,15 @@ pub fn throw_garbage(
         }
     }
 
-    match put(robot, world, content_in, quantity, direction) {
-        Ok(removed_quantity) => {
-            // println!("Successfully put {} items", quantity_put);
-            goal_tracker.update(Ok(()), GoalType::ThrowGarbage);
-            Ok(removed_quantity)
-            // Continue with your program logic using the returned quantity
-        }
-        Err(err) => {
-            eprintln!("Error: {:?}", err);
-            return Err(err);
-            // Handle the error case
-        }
-    }
-    // Ok((0))
+    handle_put(
+        robot,
+        world,
+        content_in,
+        quantity,
+        direction,
+        goal_tracker,
+        GoalType::ThrowGarbage,
+    )
 }
 
 /// Gets items in a specified direction by using the robot to perform the action.
@@ -342,46 +337,41 @@ pub fn throw_garbage(
 /// * `world` - The world in which the action takes place.
 /// * `direction` - The direction in which to perform the action.
 /// * `goal_tracker` - The goal tracker to update upon successfully getting items.
+/// * `item_type` - The type of item to get.
 ///
 /// # Returns
 /// Result<(usize), LibError> - Ok((removed_quantity)) if the action is successful, Err(LibError) otherwise.
 ///
-pub fn get_items(
+pub fn destroy_and_collect_item(
     robot: &mut impl Runnable,
     world: &mut World,
     direction: Direction,
-    mut goal_tracker: GoalTracker,
-) -> Result<(usize), LibError> {
-    // check if the robot is in front of item
-    match get_tile_in_direction(robot, world, &direction) {
-        Some(tile) => match tile.content {
-            Content::None => {
-                let err = LibError::NoContent;
-                eprintln!("Error: {:?}", err);
-                return Err(err);
-            }
-            _ => {}
-        },
-        None => {
-            let err = LibError::OutOfBounds;
-            eprintln!("Error: {:?}", err);
-            return Err(err);
-        }
-    }
-
-    // destroy(robot,world, direction
+    goal_tracker: &mut GoalTracker,
+    item_type: Option<Content>,
+) -> Result<usize, LibError> {
     match destroy(robot, world, direction) {
         Ok(removed_quantity) => {
-            // println!("Successfully put {} items", quantity_put);
-            goal_tracker.update(Ok(()), GoalType::GetItems);
+            goal_tracker.update(Ok(()), GoalType::GetItems, item_type, removed_quantity);
             Ok(removed_quantity)
-            // Continue with your program logic using the returned quantity
         }
-        Err(err) => {
-            eprintln!("Error: {:?}", err);
-            Err(err)
-            // Handle the error case
-        }
+        Err(err) => Err(err),
     }
-    // Ok(())
+}
+
+fn handle_put(
+    robot: &mut impl Runnable,
+    world: &mut World,
+    content_in: Content,
+    quantity: usize,
+    direction: Direction,
+    goal_tracker: &mut GoalTracker,
+    goal_type: GoalType,
+) -> Result<usize, LibError> {
+    match put(robot, world, content_in.clone(), quantity, direction) {
+        Ok(removed_quantity) => {
+            goal_tracker.update(Ok(()), goal_type, Some(content_in), removed_quantity);
+            Ok(removed_quantity)
+        }
+        Err(err) => Err(err),
+    }
 }

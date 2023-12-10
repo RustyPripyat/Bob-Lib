@@ -12,3 +12,5 @@ path = "lib/utils/mod.rs"
 [dependencies]
 robotics_lib = { git = "ssh://github.com/Advanced-Programming-2023/Robotic-Lib", branch = "master" }
 diff = "0"
+rand = { version = "0.8.5", features = [] }
+strum = "0.25.0"
