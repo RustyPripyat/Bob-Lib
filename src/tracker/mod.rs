@@ -6,8 +6,7 @@ use robotics_lib::runner::Runnable;
 use robotics_lib::utils::LibError;
 use robotics_lib::world::tile::Content;
 use robotics_lib::world::World;
-
-use utils::{get_tile_in_direction, match_content_type_variant};
+use crate::utils::{match_content_type_variant, get_tile_in_direction};
 
 /// Enum representing various types of goals in a robotics context.
 #[derive(Debug, PartialEq)]

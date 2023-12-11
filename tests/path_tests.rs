@@ -1,14 +1,43 @@
-#[path = "../src/bob.rs"]
-mod bob;
 
 #[cfg(test)]
 mod tests {
-    use crate::bob::{bob_type_check, BobMap, BobPinTypes};
-    use robotics_lib::world::coordinates::Coordinate;
-    use robotics_lib::world::World;
+    use std::mem::discriminant;
     use std::ops::Deref;
     use std::rc::Rc;
 
+    use robotics_lib::world::tile::{Content, Tile};
+
+    use bob_lib::enhanced_map::{bob_type_check, BobMap, BobPinTypes};
+
+    /// Generates a String representation of a grid of tiles.
+    /// Each tile is formatted and printed within a Markdown-like table structure.
+    ///
+    /// # Arguments
+    ///
+    /// * `tiles` - A vector of vectors representing the grid of tiles.
+    ///
+    pub fn pretty_print_tilemap(tiles: Vec<Vec<Tile>>) {
+        for row in tiles {
+            let mut row_str = String::new();
+            for tile in row {
+                let content_display = match tile.content {
+                    Content::None => format!("{:?}", tile.tile_type),
+                    _ => format!("{:?}({})", tile.tile_type, tile.content),
+                };
+                row_str += &format!("| {:<8}\t", content_display); // Adjust the width as needed
+            }
+            println!("{}|", row_str);
+        }
+    }
+
+    pub fn match_content_type_variant(lhs: Option<Content>, rhs: Option<Content>) -> bool {
+        match (lhs, rhs) {
+            (Some(lhs), Some(rhs)) => discriminant(&lhs) == discriminant(&rhs),
+            _ => false,
+        }
+    }
+
+    /*
     #[test]
     fn test_pin() {
         let mut map = BobMap::init();
@@ -42,5 +71,41 @@ mod tests {
             }
             None => {}
         }
+    }
+     */
+
+    #[test]
+    fn test_match_content_type_both_some_same_content() {
+        let lhs = Some(Content::Rock(1));
+        let rhs = Some(Content::Rock(1));
+        assert!(match_content_type_variant(lhs, rhs));
+    }
+
+    #[test]
+    fn test_match_content_type_both_some_same_content_different_value() {
+        let lhs = Some(Content::Rock(1));
+        let rhs = Some(Content::Rock(2));
+        assert!(match_content_type_variant(lhs, rhs));
+    }
+
+    #[test]
+    fn test_match_content_type_both_some_different_content() {
+        let lhs = Some(Content::Rock(1));
+        let rhs = Some(Content::Tree(2));
+        assert!(!match_content_type_variant(lhs, rhs));
+    }
+
+    #[test]
+    fn test_match_content_type_one_none() {
+        let lhs = Some(Content::Rock(1));
+        let rhs = None;
+        assert!(!match_content_type_variant(lhs, rhs));
+    }
+
+    #[test]
+    fn test_match_content_type_both_none() {
+        let lhs: Option<Content> = None;
+        let rhs: Option<Content> = None;
+        assert!(!match_content_type_variant(lhs, rhs));
     }
 }
