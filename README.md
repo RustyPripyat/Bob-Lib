@@ -1,41 +1,79 @@
-# Goal Tracker Rust Library
+## GoalTracker Usage Guide
 
-This Rust library provides functionality for tracking and managing goals within a robotics context. It includes methods to create, manage, update, and remove various types of goals that a robot needs to accomplish.
+The primary way to utilize the tracker provided by our tool is to use a `GoalTracker` struct and its methods.
 
-## Purpose
+### Creating GoalTracker
 
-The `GoalTracker` module manages different types of goals, such as putting out fires, obtaining items, selling items, and disposing of garbage. It allows for easy tracking of the status of these goals and their completion.
+To start tracking goals, create a `GoalTracker` object using the provided `new` method.
 
-## Features
+```rust
+let mut goal_tracker = GoalTracker::new();
+```
 
-### `Goal` Struct
-- Represents individual goals with details like name, description, type, completion status, goal quantity, and remaining items.
-- Goals can be created, updated, and removed.
+### Adding Goals
 
-### `GoalTracker` Struct
-- Manages a collection of goals.
-- Tracks completed goals and updates their status.
-- Allows for adding, removing, and retrieving goals.
+Create `Goal` objects using the designated method and add them to the `GoalTracker` using the `add_goal` method.
 
-### Goal Types
-- **PutOutFire**: Puts out fires in a specified direction.
-- **GetItems**: Obtains items in a specified direction.
-- **SellItems**: Sells items in a specified direction.
-- **ThrowGarbage**: Disposes of garbage in a specified direction.
+```rust
+// Create a goal
+let new_goal = Goal::new(
+"Get some fish".to_string(),
+"Thanks for all the fish".to_string(),
+GoalType::GetItems,
+Some(Content::Fish),
+42,
+);
 
-### Functions
-All these methods are basically wrappers around the functions provided by [Robotics_lib](https://github.com/Advanced-Programming-2023/Robotic-Lib).
-The library includes functions to perform actions related to these goals:
-- `put_out_fire`: Puts out fires using a robot in a specified direction.
-- `get_items`: Retrieves items using a robot in a specified direction.
-- `sell_items`: Sells items using a robot in a specified direction.
-- `throw_garbage`: Disposes of garbage using a robot in a specified direction.
+// Add the goal to the tracker
+goal_tracker.add_goal(new_goal);
+```
 
-## Usage
-To use this library:
-- Integrate the `GoalTracker` and related methods into your Rust project.
-- Define goals using the `Goal` struct and add them to the `GoalTracker`.
-- Use the provided functions (`put_out_fire`, `get_items`, `sell_items`, `throw_garbage`) to perform actions instead of directly calling the interfaces provided by [Robotics_lib](https://github.com/Advanced-Programming-2023/Robotic-Lib) so that all your goals stay update.
+### Tracking Bot Actions
+
+To track the actions of the robot, utilize specific methods provided by the `GoalTracker` for different actions:
+
+#### Destroy and Collect Item
+
+```rust
+// Perform the action
+destroy_and_collect_item(robot, world, direction, & mut goal_tracker);
+```
+
+This method internally calls the `destroy` interface. It then tries to update the goals that match the `GetItems`
+goalType.
+
+#### Throw Garbage
+
+```rust
+// Perform the action
+throw_garbage(robot, world, content, quantity, direction, & mut goal_tracker);
+```
+
+This method internally calls the `put` interface. It then tries to update the goals that match the `ThrowGarbage`
+goalType. It cheks if the robot is in front of a `Content::Bin`; the `content` must be of type `Content::Garbage`
+
+#### Sell Items in Market
+
+```rust
+// Perform the action
+sell_items_in_market(robot, world, content, quantity, direction, & mut goal_tracker);
+```
+
+This method internally calls the `put` interface. It then tries to update the goals that match the `SellItems` goalType.
+It cheks if the robot is in front of a `Content::Market`.
+
+#### Put Out Fire
+
+```rust
+// Perform the action
+put_out_fire(robot, world, direction, & mut goal_tracker);
+```
+
+This method internally calls the `put` interface. It then tries to update the goals that match the `PutOutFire`
+goalType. It checks if the robot is in front of a `Content::Fire`; the `content` must be of type `Content::Water`
+
+Using these methods within the `GoalTracker` ensures a systematic way of managing and updating goals based on the
+actions performed by the robot.
 
 ## Installation
 

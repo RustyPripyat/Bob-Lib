@@ -242,12 +242,11 @@ impl Display for GoalTracker {
 /// Puts out a fire in a specified direction by using the robot to perform the action.
 /// It automatically checks if the robot is in front of a Fire and if the content is
 /// valid. If not, it returns an error. It does update all your goals if the action is successful.
+/// One unit of `Content::Water` from the backpack is used to put out the fire.
 ///
 /// # Arguments
 /// * `robot` - The robot that will perform the action.
 /// * `world` - The world in which the action takes place.
-/// * `content_in` - The type of content to put out the fire.
-/// * `quantity` - The quantity of the content to use for putting out the fire.
 /// * `direction` - The direction in which to perform the action.
 /// * `goal_tracker` - The goal tracker to update upon successfully putting out the fire.
 ///
@@ -257,11 +256,10 @@ impl Display for GoalTracker {
 pub fn put_out_fire(
     robot: &mut impl Runnable,
     world: &mut World,
-    content_in: Content,
-    quantity: usize,
     direction: Direction,
     goal_tracker: &mut GoalTracker,
 ) -> Result<usize, LibError> {
+
     // check if robot is in front of fire
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()
@@ -278,8 +276,8 @@ pub fn put_out_fire(
     handle_put(
         robot,
         world,
-        content_in,
-        quantity,
+        Content::Water(0),
+        1,
         direction,
         goal_tracker,
         GoalType::PutOutFire,
