@@ -8,7 +8,14 @@ use robotics_lib::world::tile::Content;
 use robotics_lib::world::World;
 use crate::utils::{match_content_type_variant, get_tile_in_direction};
 
-/// Enum representing various types of goals in a robotics context.
+/// Represents various types of goals in a robotics context.
+///
+/// # Variants
+///
+/// * `PutOutFire` - Represents a goal to extinguish a fire.
+/// * `GetItems` - Represents a goal to retrieve items.
+/// * `SellItems` - Represents a goal to sell items.
+/// * `ThrowGarbage` - Represents a goal to dispose of garbage.
 #[derive(Debug, PartialEq)]
 pub enum GoalType {
     PutOutFire,
@@ -17,18 +24,56 @@ pub enum GoalType {
     ThrowGarbage,
 }
 
+
+/// Represents a goal in a robotics context.
+///
+/// # Arguments
+///
+/// * `name` - The name of the goal.
+/// * `description` - A description providing details about the goal.
+/// * `goal_type` - The type of goal (e.g., PutOutFire, GetItems, SellItems, ThrowGarbage).
+/// * `item_type` - The optional type of content associated with the goal (e.g., Some(Content)).
+/// * `completed` - Indicates whether the goal has been completed (true) or not (false).
+/// * `goal_quantity` - The quantity required to fulfill the goal.
+/// * `items_left` - The number of items left to complete the goal.
 #[derive(Debug)]
 pub struct Goal {
-    name: String,
-    description: String,
-    goal_type: GoalType,
-    item_type: Option<Content>,
-    completed: bool,
-    goal_quantity: u32,
-    items_left: u32,
+    /// The name of the goal.
+    pub name: String,
+
+    /// A description providing details about the goal.
+    pub description: String,
+
+    /// The type of goal.
+    pub goal_type: GoalType,
+
+    /// The optional type of content associated with the goal.
+    pub item_type: Option<Content>,
+
+    /// Indicates whether the goal has been completed.
+    pub completed: bool,
+
+    /// The quantity required to fulfill the goal.
+    pub goal_quantity: u32,
+
+    /// The number of items left to complete the goal.
+    pub items_left: u32,
 }
 
+
+
 impl Goal {
+    /// Creates a new Goal instance.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the goal.
+    /// * `description` - The description of the goal.
+    /// * `goal_type` - The type of the goal.
+    /// * `item_type` - The optional type of the item associated with the goal.
+    /// * `goal_quantity` - The quantity related to the goal.
+    ///
+    /// # Returns
+    /// A new `Goal` instance.
     pub fn new(
         name: String,
         description: String,
@@ -88,10 +133,21 @@ impl Display for Goal {
     }
 }
 
+/// Tracks and manages goals within a robotics context.
+///
+/// # Arguments
+///
+/// * `goals` - A vector storing the list of goals to be tracked.
+/// * `completed_number` - The count of completed goals within the tracker.
 pub struct GoalTracker {
+    /// The list of goals being tracked.
     goals: Vec<Goal>,
+
+    /// The number of completed goals.
     completed_number: usize,
 }
+
+
 
 impl GoalTracker {
     pub fn new() -> GoalTracker {
@@ -123,6 +179,7 @@ impl GoalTracker {
         }
     }
 
+    // Removes all completed goals from the tracker.
     pub fn clean_completed_goals(&mut self) {
         self.goals.retain(|goal| !goal.completed);
     }
@@ -233,6 +290,7 @@ pub fn put_out_fire(
 /// Sells items in a specified direction by using the robot to perform the action.
 /// It automatically checks if the robot is in front of a market and if the content to sell is
 /// valid. If not, it returns an error. It does update all your goals if the action is successful.
+/// It calls the put interface internally from Robotics_lib.
 ///
 /// # Arguments
 /// * `robot` - The robot that will perform the action.
@@ -279,6 +337,8 @@ pub fn sell_items_in_market(
 /// Throws garbage in a specified direction by using the robot to perform the action.
 /// It automatically checks if the robot is in front of a Bin and if the content to throw is
 /// valid. If not, it returns an error. It does update all your goals if the action is successful.
+/// It calls the put interface internally from Robotics_lib.
+///
 ///
 /// # Arguments
 /// * `robot` - The robot that will perform the action.
@@ -330,6 +390,7 @@ pub fn throw_garbage(
 /// Gets items in a specified direction by using the robot to perform the action.
 /// It automatically checks if the robot is in front of a Content. If not, it returns an error.
 /// It does update all your goals if the action is successful.
+/// It calls the destroy interface internally from Robotics_lib.
 ///
 /// # Arguments
 /// * `robot` - The robot that will perform the action.
