@@ -75,6 +75,22 @@ goalType. It checks if the robot is in front of a `Content::Fire`; the `content`
 Using these methods within the `GoalTracker` ensures a systematic way of managing and updating goals based on the
 actions performed by the robot.
 
+## Enhanced Map
+
+The enhanced map is one other functionality of our tool, it allows to have a richer robot map augmented with better coordinates tracking and customizable pins.
+
+### Custom pins
+
+todo!
+
+### Absolute coordinates
+
+todo!
+
+### Mandatory Interfaces
+
+todo!
+
 ## Installation
 
 Add this library as a dependency in your `Cargo.toml` file:
