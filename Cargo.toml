@@ -12,3 +12,4 @@ robotics_lib = { git = "ssh://github.com/Advanced-Programming-2023/Robotic-Lib",
 diff = "0"
 rand = { version = "0.8.5", features = [] }
 strum = "0.25.0"
+rayon = { version = "1.8.0", features = [] }

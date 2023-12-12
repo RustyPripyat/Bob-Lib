@@ -1,13 +1,12 @@
-
 #[cfg(test)]
 mod tests {
     use std::mem::discriminant;
-    use std::ops::Deref;
-    use std::rc::Rc;
+    use std::time::Instant;
 
-    use robotics_lib::world::tile::{Content, Tile};
+    use rayon::prelude::*;
+    use robotics_lib::world::tile::{Content, Tile, TileType};
 
-    use bob_lib::enhanced_map::{bob_type_check, BobMap, BobPinTypes};
+    use bob_lib::enhanced_map::BobPinTypes;
 
     /// Generates a String representation of a grid of tiles.
     /// Each tile is formatted and printed within a Markdown-like table structure.
@@ -35,6 +34,36 @@ mod tests {
             (Some(lhs), Some(rhs)) => discriminant(&lhs) == discriminant(&rhs),
             _ => false,
         }
+    }
+
+    pub fn manual_update_testing(robot_map: &mut Vec<Vec<Option<robotics_lib::world::tile::TileType>>>, m: &mut Vec<Vec<(Option<robotics_lib::world::tile::TileType>, Option<BobPinTypes>)>>) {
+        m.par_iter_mut().enumerate().for_each(|(i, v)| {
+            v.iter_mut().enumerate().for_each(|(j, (tile, _))| {
+                match robot_map[i][j] {
+                    Some(val) => *tile = Some(val),
+                    None => {}
+                }
+            })
+        })
+    }
+
+    #[test]
+    fn test_update_speed() {
+        println!("time to create vectors: ");
+        let start = Instant::now();
+        let mut map = vec![vec![(Some(TileType::Street), Some(BobPinTypes::City)); 10000]; 10000];
+        let mut robot_map = vec![vec![Some(robotics_lib::world::tile::TileType::Grass); 10000]; 10000];
+        let end = Instant::now();
+        let dur = end.duration_since(start);
+        println!("{:?}", dur);
+
+        println!("time to replace vectors: ");
+        let start = Instant::now();
+        manual_update_testing(&mut robot_map, &mut map);
+        let end = Instant::now();
+        let dur = end.duration_since(start);
+        println!("{:?}", dur);
+        assert_eq!(map[0][0].0, robot_map[0][0]);
     }
 
     /*

@@ -1,13 +1,14 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::rc::Rc;
+use std::sync::Arc;
 
+use rayon::prelude::*;
 use robotics_lib::interface::{Direction, one_direction_view, robot_map, robot_view};
-use robotics_lib::runner::{Runnable};
+use robotics_lib::runner::Runnable;
 use robotics_lib::utils::LibError;
-use robotics_lib::world::coordinates::Coordinate;
 use robotics_lib::world::tile::{Content, Tile, TileType};
 use robotics_lib::world::World;
 
@@ -20,7 +21,7 @@ use robotics_lib::world::World;
 /// * `City`
 /// * `Bank(usize)`
 /// * `Market`
-/// * [`Custom(Rc<dyn Any>)`](BobPinTypes::Custom)
+/// * [`Custom(Arc<dyn Any>)`](BobPinTypes::Custom)
 /// # Examples
 /// ```
 /// use robotics_lib::world::tile::Content;
@@ -43,12 +44,12 @@ pub enum BobPinTypes {
     Market,
     /// Custom pin type
     ///
-    /// Contains an Rc<dyn Any> meaning that it can contain
+    /// Contains an Arc<dyn Any> meaning that it can contain
     /// any type you want as a pin.
     ///
     /// When obtained back the type is undefinable, the usage of
     /// [bob_type_check] is suggested.
-    Custom(Rc<dyn Any>),
+    Custom(Arc<dyn Any + Send + Sync>),
 }
 
 impl PartialEq<Self> for BobPinTypes {
@@ -87,8 +88,8 @@ impl PartialEq<Self> for BobPinTypes {
                 false
             }
             (BobPinTypes::Custom(val1), BobPinTypes::Custom(val2)) => {
-                if Rc::<(dyn Any + 'static)>::as_ptr(val1)
-                    .eq(&Rc::<(dyn Any + 'static)>::as_ptr(val2))
+                if Arc::<(dyn Any + Send + Sync + 'static)>::as_ptr(val1)
+                    .eq(&Arc::<(dyn Any + Send + Sync + 'static)>::as_ptr(val2))
                 {
                     return true;
                 }
@@ -112,8 +113,8 @@ impl Hash for BobPinTypes {
             BobPinTypes::City => (),
             BobPinTypes::Bank(value) => value.hash(state),
             BobPinTypes::Market => (),
-            BobPinTypes::Custom(rc_any) => {
-                let ptr = Rc::<(dyn Any + 'static)>::as_ptr(&rc_any);
+            BobPinTypes::Custom(Arc_any) => {
+                let ptr = Arc::<(dyn Any + Send + Sync + 'static)>::as_ptr(&Arc_any);
                 ptr.hash(state)
             }
         }
@@ -133,7 +134,7 @@ impl Hash for BobPinTypes {
 /// * [`delete_pin`](BobMap::delete_pin): delete a pin at coordinates
 /// * [`search_pin`](BobMap::search_pin): search a pin from pin
 pub struct BobMap {
-    map: Vec<Vec<(Option<Tile>, Option<Rc<BobPinTypes>>)>>,
+    map: Vec<Vec<(Option<Tile>, Option<Arc<BobPinTypes>>)>>,
     saved_pins: HashMap<BobPinTypes, Vec<(usize, usize)>>,
 }
 
@@ -152,8 +153,8 @@ impl BobMap {
     /// ```
     pub fn init(world: &World) -> BobMap {
         let robot_map = robot_map(world).unwrap();
-        let map: Vec<Vec<(Option<Tile>, Option<Rc<BobPinTypes>>)>> = robot_map
-            .into_iter()
+        let map: Vec<Vec<(Option<Tile>, Option<Arc<BobPinTypes>>)>> = robot_map
+            .into_par_iter()
             .map(|row| row.into_iter().map(|tile| (tile, None)).collect())
             .collect();
         BobMap {
@@ -171,14 +172,14 @@ impl BobMap {
     /// Function to add a pin to a location on the map
     /// # Example
     /// ```
-    /// use std::rc::Rc;
+    /// use std::sync::Arc;
     /// use robotics_lib::world;
     /// use bob_lib::enhanced_map::{BobMap, BobPinTypes};
     ///
     /// let mut map: BobMap;
-    /// map.add_pin(Rc::new(BobPinTypes::City), (1,3))
+    /// map.add_pin(Arc::new(BobPinTypes::City), (1,3))
     /// ```
-    pub fn add_pin(&mut self, pin: Rc<BobPinTypes>, (x, y): (usize, usize)) {
+    pub fn add_pin(&mut self, pin: Arc<BobPinTypes>, (x, y): (usize, usize)) {
         self.map[x][y].1 = Some(pin.clone());
         if self.saved_pins.contains_key(&pin) {
             let vec = self.saved_pins.get_mut(&pin).unwrap();
@@ -200,7 +201,7 @@ impl BobMap {
     /// let mut map: BobMap;
     /// let result = map.get_pin((1, 3));
     /// ```
-    pub fn get_pin(&self, (x, y): (usize, usize)) -> Option<Rc<BobPinTypes>> {
+    pub fn get_pin(&self, (x, y): (usize, usize)) -> Option<Arc<BobPinTypes>> {
         self.map[x][y].1.clone().clone()
     }
 
@@ -238,8 +239,25 @@ impl BobMap {
     /// let mut map: BobMap;
     /// let enhanced_map = map.get_map();
     /// ```
-    pub fn get_map(&self) -> &Vec<Vec<(Option<Tile>, Option<Rc<BobPinTypes>>)>> {
+    pub fn get_map(&self) -> &Vec<Vec<(Option<Tile>, Option<Arc<BobPinTypes>>)>> {
         self.map.as_ref()
+    }
+
+    /// Function to get a full mutable map with pins
+    ///
+    /// It returns a mutable matrix of undiscovered and discovered Tiles, each associated with
+    /// their pins.
+    ///
+    /// This function is just for internal usage
+    /// # Example
+    /// ```
+    /// use bob_lib::enhanced_map::BobMap;
+    ///
+    /// let mut map: BobMap;
+    /// let enhanced_map = map.get_map();
+    /// ```
+    fn get_mut_map(&mut self) -> &mut Vec<Vec<(Option<Tile>, Option<Arc<BobPinTypes>>)>> {
+        self.map.as_mut()
     }
 
     /// Function to search a pin in the map
@@ -250,24 +268,24 @@ impl BobMap {
     /// pin
     /// # Example
     /// ```
-    /// use std::rc::Rc;
+    /// use std::sync::Arc;
     /// use bob_lib::enhanced_map::{BobMap, BobPinTypes};
     ///
     /// let map: BobMap;
-    /// let coordinates = map.search_pin(Rc::new(BobPinTypes::Market));
+    /// let coordinates = map.search_pin(Arc::new(BobPinTypes::Market));
     /// ```
     /// This function will keep in mind the value assigned to the enum, for example:
     ///
     /// ```
-    /// use std::rc::Rc;
+    /// use std::sync::Arc;
     /// use bob_lib::enhanced_map::{BobMap, BobPinTypes};
     ///
     /// let map: BobMap;
     /// // these two will return different coordinates
-    /// let coordinates_1 = map.search_pin(Rc::new(BobPinTypes::I32(5)));
-    /// let coordinates_2 = map.search_pin(Rc::new(BobPinTypes::I32(12)));
+    /// let coordinates_1 = map.seaArch_pin(Arc::new(BobPinTypes::I32(5)));
+    /// let coordinates_2 = map.seaArch_pin(Arc::new(BobPinTypes::I32(12)));
     /// ```
-    pub fn search_pin(&self, pin: Rc<BobPinTypes>) -> Option<Vec<(usize, usize)>> {
+    pub fn search_pin(&self, pin: Arc<BobPinTypes>) -> Option<Vec<(usize, usize)>> {
         if self.saved_pins.contains_key(&pin) {
             let vec = self.saved_pins.get(&pin).unwrap();
             return Some(vec.clone());
@@ -434,12 +452,13 @@ pub fn bob_one_direction_view(
 ///
 /// It returns an empty [Err] if the Custom is not of the requested type
 ///
-/// It return [Ok] containing an [Rc] pointing to a value of the requested Type
+/// It return [Ok] containing an [Arc] pointing to a value of the requested Type
 /// if the requested type is indeed the correct one
 /// # Example
 /// ```
 /// use std::ops::Deref;
 /// use std::rc::Rc;
+/// use std::sync::Arc;
 /// use bob_lib::enhanced_map::{bob_type_check, BobMap, BobPinTypes};
 ///
 /// // custom pin type
@@ -449,23 +468,36 @@ pub fn bob_one_direction_view(
 ///
 /// let mut map: BobMap;
 /// // add pin to coordinates (0,0)
-/// map.add_pin(Rc::new(BobPinTypes::Custom(Rc::new(CustomPin::Whatever))), (0,0));
+/// map.add_pin(Arc::new(BobPinTypes::Custom(Arc::new(CustomPin::Whatever))), (0,0));
 /// // assume it returns Some for semplicity
 /// let pin = map.get_pin((0,0)).unwrap().deref();
 ///
 /// match pin {
 ///     BobPinTypes::Custom(value) => {
 ///         // if value is of type CustomPin returns Ok(value)
-///         if let Ok(found) = bob_type_check::<CustomPin>(Rc::new(value)) {
+///         if let Ok(found) = bob_type_check::<CustomPin>(Arc::clone(value)) {
 ///             matches!(found.deref(), CustomPin::Whatever);
 ///         }
 ///     }
 ///     _ => todo!()
 /// }
 /// ```
-pub fn bob_type_check<T: 'static>(to_check: Rc<dyn Any>) -> Result<Rc<T>, ()> {
+pub fn bob_type_check<T: Send + Sync + 'static>(to_check: Arc<dyn Any + Send + Sync>) -> Result<Arc<T>, ()> {
     if let Some(val) = to_check.downcast::<T>().ok() {
         return Ok(val);
     }
     Err(())
+}
+
+pub fn auto_update(world: &World, map: &mut BobMap) {
+    let mut robot_map = robot_map(world).unwrap();
+    let mut m = map.get_mut_map();
+
+    m.par_iter_mut().enumerate().for_each(|(i, v)| {
+        v.iter_mut().enumerate().for_each(|(j, (tile, _))| {
+            if robot_map[i][j].is_some() {
+                *tile = robot_map[i][j].clone()
+            }
+        })
+    })
 }
