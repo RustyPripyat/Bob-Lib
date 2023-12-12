@@ -81,5 +81,5 @@ Add this library as a dependency in your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-goal_tracker = { git = "https://github.com/RustyPripyat/Bob-the-poor-sheikah-clone.git", branch = "main" }
+bob_lib = { git = "https://github.com/RustyPripyat/Bob-Lib.git", branch = "main" }
 ```
