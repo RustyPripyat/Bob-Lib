@@ -1,12 +1,12 @@
 use std::fmt;
 use std::fmt::Display;
 
+use crate::utils::{get_tile_in_direction, match_content_type_variant};
 use robotics_lib::interface::{destroy, put, Direction};
 use robotics_lib::runner::Runnable;
 use robotics_lib::utils::LibError;
 use robotics_lib::world::tile::Content;
 use robotics_lib::world::World;
-use crate::utils::{match_content_type_variant, get_tile_in_direction};
 
 /// Represents various types of goals in a robotics context.
 ///
@@ -23,7 +23,6 @@ pub enum GoalType {
     SellItems,
     ThrowGarbage,
 }
-
 
 /// Represents a goal in a robotics context.
 ///
@@ -60,8 +59,6 @@ pub struct Goal {
     pub items_left: u32,
 }
 
-
-
 impl Goal {
     /// Creates a new Goal instance.
     ///
@@ -90,6 +87,15 @@ impl Goal {
             goal_quantity,
             items_left: goal_quantity,
         }
+    }
+
+    /// Updates the goal progress based on the removed quantity.
+    fn update_progress(&mut self, removed_quantity: usize) {
+        self.items_left = self.items_left.saturating_sub(removed_quantity as u32);
+    }
+
+    fn is_completed(&self) -> bool {
+        self.items_left == 0
     }
 
     pub fn get_name(&self) -> &String {
@@ -147,8 +153,6 @@ pub struct GoalTracker {
     completed_number: usize,
 }
 
-
-
 impl GoalTracker {
     pub fn new() -> GoalTracker {
         GoalTracker {
@@ -177,6 +181,18 @@ impl GoalTracker {
         } else {
             None
         }
+    }
+
+    /// Finds a goal an returs a mut ref to such goal. Finds the first occurrency.
+    fn find_goal_mut(
+        &mut self,
+        goal_type: GoalType,
+        item_type: Option<Content>,
+    ) -> Option<&mut Goal> {
+        self.goals.iter_mut().find(|goal| {
+            goal.goal_type == goal_type
+                && match_content_type_variant(goal.item_type.clone(), item_type.clone())
+        })
     }
 
     // Removes all completed goals from the tracker.
@@ -226,6 +242,60 @@ impl GoalTracker {
             eprintln!("Error: {:?}", e);
         }
     }
+
+    /// Manually update a goal's progress based on specified parameters.
+    ///
+    /// This method allows for manual tracking of goal progress by specifying the goal type,
+    /// associated item type, and the quantity of items removed or completed. It searches for
+    /// the corresponding goal in the tracker and updates its status accordingly.
+    ///
+    /// # Arguments
+    ///
+    /// * `goal_type` - The type of the goal to be updated.
+    /// * `item_type` - The optional type of content associated with the goal.
+    /// * `removed_quantity` - The quantity of items removed or completed.
+    ///
+    /// # Examples
+    /// ```
+    /// use bob_lib::{GoalTracker, GoalType};
+    ///
+    /// let mut goal_tracker = GoalTracker::new();
+    /// // Assume a goal of type GetItems with some associated content
+    /// goal_tracker.update_manual(GoalType::GetItems, Some(Content::Rock), 3);
+    /// ```
+    ///
+    /// This example demonstrates manually updating a goal of type `GetItems` with the removal of
+    /// 3 items of type `Content::Rock`, in case the goal was not updated automatically, because an
+    /// external tool(s) called the `put` or the `destroy` interface directly.
+    ///
+    /// # Note
+    ///
+    /// If the goal is not found in the tracker, an error message is printed to the standard error.
+    ///
+    /// # Panics
+    ///
+    /// The method does not panic but may print an error message if the specified goal is not found.
+    ///
+    /// # Safety
+    ///
+    /// This method assumes that the `GoalTracker` is correctly initialized and that the provided
+    /// parameters are valid in the context of the tracked goals.
+    pub fn update_manual(
+        &mut self,
+        goal_type: GoalType,
+        item_type: Option<Content>,
+        removed_quantity: usize,
+    ) {
+        if let Some(goal) = self.find_goal_mut(goal_type, item_type.clone()) {
+            println!("Found goal: {:?}", goal);
+            goal.update_progress(removed_quantity);
+            if goal.is_completed() {
+                self.completed_number += 1;
+            }
+        } else {
+            eprintln!("Error: Goal not found");
+        }
+    }
 }
 
 impl Display for GoalTracker {
@@ -259,7 +329,6 @@ pub fn put_out_fire(
     direction: Direction,
     goal_tracker: &mut GoalTracker,
 ) -> Result<usize, LibError> {
-
     // check if robot is in front of fire
     match get_tile_in_direction(robot, world, &direction)
         .unwrap()

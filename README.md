@@ -75,6 +75,13 @@ goalType. It checks if the robot is in front of a `Content::Fire`; the `content`
 Using these methods within the `GoalTracker` ensures a systematic way of managing and updating goals based on the
 actions performed by the robot.
 
+#### Manual Update Goals
+In case the tool you've purchased independently calls the `put` and `destroy` interfaces, our tool provides a manual update for goals.
+```rust
+goal_tracker.update_manual(GoalType::GetItems, Some(Content::Rock), 3);
+```
+This method updates the first goal that matches the `GoalType` and `Content`. You don't need to check if the removed quantity is greater than the amount needed for the goal to complete.
+
 ## Enhanced Map
 
 The enhanced map is one other functionality of our tool, it allows to have a richer robot map augmented with better coordinates tracking and customizable pins.
