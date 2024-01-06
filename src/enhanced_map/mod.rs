@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use rayon::prelude::*;
-use robotics_lib::interface::{Direction, one_direction_view, robot_map, robot_view};
+use robotics_lib::interface::{Direction, discover_tiles, one_direction_view, robot_map, robot_view};
 use robotics_lib::runner::Runnable;
 use robotics_lib::utils::LibError;
 use robotics_lib::world::tile::{Content, Tile, TileType};
@@ -446,6 +446,55 @@ pub fn bob_one_direction_view(
 
     map.update(update_vector);
     Ok(ret)
+}
+
+/// Discovers tiles in the world based on specified coordinates and updates the BobMap.
+///
+/// # Arguments
+///
+/// * `robot` - A mutable reference to a robot implementing the `Runnable` trait.
+/// * `world` - A mutable reference to the world in which the robot operates.
+/// * `to_discover` - A slice containing coordinates `(usize, usize)` of tiles to discover.
+/// * `map` - A mutable reference to the BobMap that needs to be updated.
+///
+/// # Returns
+///
+/// Returns a Result containing a HashMap<(usize, usize), Option<Tile>> where:
+/// - The key is a tuple representing coordinates.
+/// - The value is an Option that may contain a Tile representing discovered information.
+/// - Possible errors are wrapped in a LibError.
+///
+/// # Errors
+///
+/// This function may return an error if there are issues during the tile discovery process.
+///
+/// ```
+pub fn bob_discover_tiles(robot: &mut impl Runnable,
+                          world: &mut World,
+                          to_discover: &[(usize, usize)],
+                          map: &mut BobMap) -> Result<HashMap<(usize, usize), Option<Tile>>, LibError> {
+    let discover_result = discover_tiles(robot, world, to_discover);
+    let mut discovered_tiles_vec: Vec<(usize, usize, Tile)> = vec![];
+
+    // we get the hashmap and turn it into a simpler Vec<(usize,usize,Tile)>
+    // so we can feed such vec to the BobMap::update() function
+
+    match discover_result.clone() {
+        Ok(hashmap) => {
+            discovered_tiles_vec = hashmap
+                .into_iter()
+                .filter_map(|((x, y), tile_option)| {
+                    tile_option.map(|tile| (x, y, tile))
+                })
+                .collect();
+        }
+        Err(e) => return Err(e)
+    }
+
+    // println!("discovered tiles: {:?}", discovered_tiles_vec);
+
+    map.update(discovered_tiles_vec);
+    discover_result
 }
 
 /// Function to check the type of a [BobPinTypes::Custom] after receiving it back
