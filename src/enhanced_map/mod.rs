@@ -144,7 +144,8 @@ impl Hash for BobPinTypes {
 ///
 /// Regarding tiles, the map will be updated quickly if using
 /// the interfaces [bob_view] and [bob_one_direction_view], and a bit more
-/// slowly when it auto updates from calling [get_map](BobMap::get_map)
+/// slowly when it auto updates from calling [get_map](BobMap::get_map) with
+/// the [BobMapFlag::TilesUpdated] flag
 /// # Functionalities
 /// * [`init`](BobMap::init): initialize map
 /// * [`add_pin`](BobMap::add_pin): add a pin
@@ -244,7 +245,7 @@ impl BobMap {
 
     /// Function to delete a pin from a location on the map
     ///
-    /// It returns an empty [Err] if there are no pins at teh coordinates
+    /// It returns [Err] containing [BobErr::EmptyTile] if there are no pins at the coordinates
     ///
     /// It returns an empty [Ok] if the deletion was successful
     /// # Example
@@ -269,14 +270,27 @@ impl BobMap {
     ///
     /// It returns a matrix of undiscovered and discovered Tiles, each associated with
     /// their pins
+    ///
+    /// If the map was updated by means different from our interfaces, the map will auto update
+    /// taking more time
     /// # Example
+    /// if the map was only updated through [bob_view], [bob_one_direction_view]. [add_pin](BobMap::add_pin), [bob_discover_tile] or it wasn't updated at all
     /// ```
     /// use robotics_lib::world::World;
-    /// use bob_lib::enhanced_map::BobMap;
+    /// use bob_lib::enhanced_map::{BobMap, BobMapFlag};
     ///
     /// let mut map: BobMap;
     /// let world: World;
-    /// let enhanced_map = map.get_map(&world);
+    /// let enhanced_map = map.get_map(&world, BobMapFlag::NoTileUpdated);
+    /// ```
+    /// if the map was updated by different means
+    /// ```
+    /// use robotics_lib::world::World;
+    /// use bob_lib::enhanced_map::{BobMap, BobMapFlag};
+    ///
+    /// let mut map: BobMap;
+    /// let world: World;
+    /// let enhanced_map = map.get_map(&world, BobMapFlag::TilesUpdated);
     /// ```
     pub fn get_map(&mut self, world: &World, flag: BobMapFlag) -> &Vec<Vec<(Option<Tile>, Option<Arc<BobPinTypes>>)>> {
         if flag == BobMapFlag::TilesUpdated {
@@ -301,7 +315,7 @@ impl BobMap {
     /// use bob_lib::enhanced_map::{BobMap, BobPinTypes};
     ///
     /// let map: BobMap;
-    /// let coordinates = map.search_pin(Arc::new(BobPinTypes::Market));
+    /// let coordinates = map.search_pin(BobPinTypes::Market);
     /// ```
     /// This function will keep in mind the value assigned to the enum, for example:
     ///
@@ -314,7 +328,7 @@ impl BobMap {
     /// let coordinates_1 = map.seaArch_pin(Arc::new(BobPinTypes::I32(5)));
     /// let coordinates_2 = map.seaArch_pin(Arc::new(BobPinTypes::I32(12)));
     /// ```
-    pub fn search_pin(&self, pin: Arc<BobPinTypes>) -> Result<Vec<(usize, usize)>, BobErr> {
+    pub fn search_pin(&self, pin: BobPinTypes) -> Result<Vec<(usize, usize)>, BobErr> {
         if self.pins_location.contains_key(&pin) {
             let vec = self.pins_location.get(&pin).unwrap();
             return Ok(vec.clone());
@@ -336,8 +350,9 @@ impl BobMap {
 ///
 /// let world: World;
 /// let robot: Robot;
+/// let mut map: BobMap;
 ///
-/// let view = bob_view(&robot, &world);
+/// let view = bob_view(&robot, &world, &mut map);
 /// ```
 pub fn bob_view<T: Clone>(
     robot: &impl Runnable,
@@ -387,8 +402,6 @@ pub fn bob_view<T: Clone>(
 ///
 /// let view = bob_one_direction_view(&mut robot, &world, Direction::Up, 3, &mut map);
 /// ```
-/// this function is **Mandatory** if used with [BobMap], otherwise the map will
-/// not be updated
 pub fn bob_one_direction_view(
     robot: &mut impl Runnable,
     world: &World,

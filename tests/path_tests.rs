@@ -101,7 +101,7 @@ mod tests {
             None => {}
         }
     }
-     */
+    */
 
     #[test]
     fn test_match_content_type_both_some_same_content() {
