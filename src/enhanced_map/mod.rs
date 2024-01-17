@@ -149,8 +149,8 @@ impl Hash for BobPinTypes {
 /// # Functionalities
 /// * [`init`](BobMap::init): initialize map
 /// * [`add_pin`](BobMap::add_pin): add a pin
-/// * [`get_pin`](BobMap::get_pin): remove a pin
-/// * [`get_map`](BobMap::get_map): get a pin from coordinates
+/// * [`get_pin`](BobMap::get_pin): get a pin from coordinates
+/// * [`get_map`](BobMap::get_map): get the map with pins
 /// * [`delete_pin`](BobMap::delete_pin): delete a pin at coordinates
 /// * [`search_pin`](BobMap::search_pin): search a pin from pin
 pub struct BobMap {
@@ -354,7 +354,7 @@ impl BobMap {
 ///
 /// let view = bob_view(&robot, &world, &mut map);
 /// ```
-pub fn bob_view<T: Clone>(
+pub fn bob_view(
     robot: &impl Runnable,
     world: &World,
     map: &mut BobMap,
