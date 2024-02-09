@@ -92,6 +92,9 @@ impl Goal {
     /// Updates the goal progress based on the removed quantity.
     fn update_progress(&mut self, removed_quantity: usize) {
         self.items_left = self.items_left.saturating_sub(removed_quantity as u32);
+        if self.items_left == 0 {
+            self.completed = true; // Imposta il goal come completato se non ci sono più elementi rimasti.
+        }
     }
 
     fn is_completed(&self) -> bool {
