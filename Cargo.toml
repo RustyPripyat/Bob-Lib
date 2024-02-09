@@ -1,6 +1,6 @@
 [package]
 name = "bob_lib"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Lorys Mutt @Lorysmutti", "Matteo Girardi @D35P4C1T0"]
 description = "Bob has no arms and can't do sh*t, but he can certainly remember things for you!"
