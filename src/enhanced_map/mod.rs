@@ -436,7 +436,7 @@ pub fn bob_one_direction_view(
             for (i, v) in long_view.iter().enumerate() {
                 ret.push(vec![]);
                 for (j, tile) in v.iter().enumerate() {
-                    let x = pos.get_row() - 1 + i;
+                    let x = pos.get_row() + 1 + i;
                     let y;
                     if pos.get_col() == 0 {
                         y = pos.get_col() + j;
@@ -469,7 +469,7 @@ pub fn bob_one_direction_view(
             for (i, v) in long_view.iter().enumerate() {
                 ret.push(vec![]);
                 for (j, tile) in v.iter().enumerate() {
-                    let y = pos.get_col() - 1 + j;
+                    let y = pos.get_col() + 1 + j;
                     let x;
                     if pos.get_row() == 0 {
                         x = pos.get_row() + i;
