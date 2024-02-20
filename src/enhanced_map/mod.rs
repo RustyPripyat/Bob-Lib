@@ -325,8 +325,8 @@ impl BobMap {
     ///
     /// let map: BobMap;
     /// // these two will return different coordinates
-    /// let coordinates_1 = map.seaArch_pin(Arc::new(BobPinTypes::I32(5)));
-    /// let coordinates_2 = map.seaArch_pin(Arc::new(BobPinTypes::I32(12)));
+    /// let coordinates_1 = map.search_pin(BobPinTypes::I32(5));
+    /// let coordinates_2 = map.search_pin(BobPinTypes::I32(12));
     /// ```
     pub fn search_pin(&self, pin: BobPinTypes) -> Result<Vec<(usize, usize)>, BobErr> {
         if self.pins_location.contains_key(&pin) {

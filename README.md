@@ -86,23 +86,86 @@ This method updates the first goal that matches the `GoalType` and `Content`. Yo
 
 The enhanced map is one other functionality of our tool, it allows to have a richer robot map augmented with better coordinates tracking and customizable pins.
 
-### Custom pins
+### Creating the Enhanced map
 
-todo!
+```rust
+// initialize the enhanced map
+let map = BobMap::init(&world);
+```
 
-### Absolute coordinates
+### Using the Enhanced map
 
-todo!
+The BobMap can be used to create customizable pins and to ease your life when working with coordinates
 
-### Mandatory Interfaces
+#### Custom pins
 
-todo!
+There are various types of pins you can use, they are all predefined, but if you have some other pin type in mind
+you can use the Custom pin which can contain whatever you like.
+```rust
+// all the pin types
+pub enum BobPinTypes {
+    I32(i32),
+    String(String),
+    TileType(TileType),
+    Contents(Content),
+    City,
+    Bank(usize),
+    Market,
+    Custom(Arc<dyn Any + Send + Sync>),
+}
+```
 
-## Installation
+then you can add them in the map on both discovered and undiscovered Tiles
+```rust
+// get the map
+let map = BobMap::init(&world);
 
-Add this library as a dependency in your `Cargo.toml` file:
+// add a pin
+map.add_pin(BobPinTypes::Market, (3, 5));
+```
 
-```toml
-[dependencies]
-bob_lib = { git = "https://github.com/RustyPripyat/Bob-Lib.git", branch = "main" }
+Of course you can delete your pins...
+```rust
+let result = map.delete_pin((3, 5));
+```
+
+Search for them by coordinate...
+```rust
+let pin = map.get_pin((3, 5));
+```
+
+Or by Pin type
+```rust
+// returns every tile with this particular Pin type
+let coordinates = map.search_pin(BobPinTypes::Market)
+```
+
+You can also get the whole map, you have to specify if it has been updated without the use of our interfaces
+with a BobFlag
+```rust
+// if you used some other tool or interface and the map has been updated
+let enhanced_map = map.get_map(&world, BobMapFlag::TilesUpdated);
+// or if there has been no updates to the map outside the use of our view interfaces
+let enhanced_map = map.get_map(&world, BobMapFlag::NoTileUpdated);
+```
+#### Absolute coordinates
+
+our Enhanced map provides interfaces identical to the standard views of the robotic_lib with the added benefit
+of returning the coordinates of what the robot sees.
+
+```rust
+// normal view around the robot but with absolute coordinates
+let view = bob_view(&robot, &world, &mut map);
+
+// long view as in one_direction_view but with absolute coordinates
+let long_view = bob_one_direction_view(&mut robot, &world, Direction::Up, 3, &mut map);
+```
+
+#### Utility
+
+Since using our Custom pin is not really Intuitive because of Any dyn, we provided a utility function to help
+identifying the type of the Custom pin on the receiving end.
+```rust
+// returns Ok(<correct type value>) if the CustomType is correct
+let result = bob_type_check::<CustomType>(Arc::clone(value));
 ```
